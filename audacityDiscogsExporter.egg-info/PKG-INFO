@@ -1,8 +1,8 @@
 Metadata-Version: 2.1
-Name: vinyl2digital
-Version: 0.0.3
+Name: audacityDiscogsExporter
+Version: 0.1.0
 Summary: A small example package
-Home-page: https://github.com/MartinBarker/vinyl2digital
+Home-page: https://github.com/MartinBarker/audacityDiscogsExporter
 Author: Martin Barker
 Author-email: martinbarker99@gmail.com
 License: UNKNOWN
@@ -13,7 +13,7 @@ Description: # commandLineMusicVideo
         This package will batch render each selection of an Audacity track to mp3 files with metadata tags based on a Discogs URL. vinyl2digital makes digitizing vinyl records much easier and faster. 
         
         ## Quickstart
-        * Install the package with this command: ```pip install vinyl2digital```
+        * Install the package with this command: ```pip install vinyl2digital==0.0.3```
         * Launch Audacity from your terminal (Windows 10: ```start audacity.exe```)
         * Record your audio, and splice each song as its own selection on the track (place the cursor and press Ctrl+i)
         ![step1](https://i.imgur.com/s7ktUmZ.png)

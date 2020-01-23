@@ -1,0 +1,9 @@
+README.md
+setup.py
+audacityDiscogsExporter/__init__.py
+audacityDiscogsExporter/__main__.py
+audacityDiscogsExporter.egg-info/PKG-INFO
+audacityDiscogsExporter.egg-info/SOURCES.txt
+audacityDiscogsExporter.egg-info/dependency_links.txt
+audacityDiscogsExporter.egg-info/requires.txt
+audacityDiscogsExporter.egg-info/top_level.txt
