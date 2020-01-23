@@ -1,0 +1,9 @@
+README.md
+setup.py
+vinyl2digital/__init__.py
+vinyl2digital/__main__.py
+vinyl2digital.egg-info/PKG-INFO
+vinyl2digital.egg-info/SOURCES.txt
+vinyl2digital.egg-info/dependency_links.txt
+vinyl2digital.egg-info/requires.txt
+vinyl2digital.egg-info/top_level.txt
