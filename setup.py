@@ -4,18 +4,17 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="audacityDiscogsExporter",
-    version="0.1.0",
+    name="vinyl2digital",
+    version="0.1.4",
     author="Martin Barker",
     author_email="martinbarker99@gmail.com",
     description="A small example package",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/MartinBarker/audacityDiscogsExporter",
+    url="https://github.com/MartinBarker/vinyl2digital",
     packages=setuptools.find_packages(),
     install_requires=[
         'requests',
-        'json',
         'mutagen',
     ],
     classifiers=[
