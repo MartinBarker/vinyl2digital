@@ -1,4 +1,4 @@
-# commandLineMusicVideo
+# vinyl2digital
 
 This is a Python3 [pip package](https://pypi.org/project/vinyl2digital) that connencts to Audacity's [mod-script-pipe for Python scripting](https://manual.audacityteam.org/man/scripting.html).  
 
