@@ -16,6 +16,8 @@ setuptools.setup(
     install_requires=[
         'requests',
         'mutagen',
+        're',
+        'unicodedata',
     ],
     classifiers=[
         "Programming Language :: Python :: 3",

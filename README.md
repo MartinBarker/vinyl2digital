@@ -34,5 +34,7 @@ This command:
 
 ```--img front.jpg``` (optional) Filename of image located inside your output folder to use as albumart for mp3 files.
 
+```-noTags``` Including this tag means your mp3 files won't be tagged for title, artist, album, year, and track number.
+
 ```-h``` Display help.
    
