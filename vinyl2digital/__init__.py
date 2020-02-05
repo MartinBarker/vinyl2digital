@@ -4,25 +4,18 @@ import requests
 import json
 from mutagen.easyid3 import EasyID3
 from mutagen.id3 import ID3, APIC, ID3NoHeaderError
-
-
 import re
 import unicodedata
 
 def slugify(value):
     """
-    Normalizes string, converts to lowercase, removes non-alpha characters,
-    and converts spaces to hyphens.
+    Normalizes string, removes non-alpha characters, removes all quotes
     """
-    
     value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore')
-    #value = str(re.sub('[^\w\s-]', '', value).strip().lower())
-    #value = str(re.sub('[-\s]+', '-', value))
-    
     valStr = value.decode("utf-8")
     valStr = valStr.replace('"','')
     valStr = valStr.replace("'",'')
-    print('value = ', valStr)
+
     return valStr
 
 #startup audacity pipe commands
@@ -150,24 +143,19 @@ if '-discogs' in sys.argv:
             do_command('Export2: Mode=Selection Filename="' + outputFileLocation + '" NumChannels=2 ')
             
             #if -noTags is not included:
-            try:
-                tags = EasyID3(outputFileLocation)
-            except ID3NoHeaderError:
-                tags = EasyID3()
+            if '-noTags' not in sys.argv:
+                try:
+                    audio = EasyID3(outputFileLocation)
+                except ID3NoHeaderError:
+                    audio = EasyID3()
             
-            tags['artist'] = artistString
+                audio['title'] = track['title'] 
+                audio['artist'] = artistString
+                audio['album'] = jsonData['title']
+                audio['date'] = jsonData['released']
+                audio['tracknumber'] = str(trackNum)
+                audio.save(outputFileLocation)
 
-            tags.save(outputFileLocation)
-
-            #tag output file
-            #audio = EasyID3(outputFileLocation) 
-            #audio['title'] = trackTitle #track['title'] 
-            #audio['artist'] = artistString
-            #audio['album'] = slugify(jsonData['title'])
-            #audio['date'] = jsonData['released']
-            #audio['tracknumber'] = str(trackNum)
-            #audio.save()
-            """
             if '-img' in sys.argv:
                 imgNameIndex = sys.argv.index('-img')
                 imgName = sys.argv[imgNameIndex+1]
@@ -183,8 +171,7 @@ if '-discogs' in sys.argv:
                         data=albumart.read()
                     )
                 audio.save()
-
-            """
+            
             trackNum = trackNum + 1
     else:
         print("unsuccessful discogs api call")
