@@ -2,20 +2,25 @@ import os
 import sys
 import requests
 import json
+import mutagen
 from mutagen.easyid3 import EasyID3
 from mutagen.id3 import ID3, APIC, ID3NoHeaderError
+from mutagen.mp3 import MP3 
+
+from eyed3 import id3 
+
+#from pytag import Audio
+
 import re
-import unicodedata
+#import re 
+#import unicodedata
 
 def slugify(value):
     """
-    Normalizes string, removes non-alpha characters, removes all quotes
+    Remove any chars from string that arent english characters or numbers
+    I intend on fixing this in the future
     """
-    value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore')
-    valStr = value.decode("utf-8")
-    valStr = valStr.replace('"','')
-    valStr = valStr.replace("'",'')
-
+    valStr = re.sub('[^A-Za-z0-9]+', ' ', value)
     return valStr
 
 #startup audacity pipe commands
@@ -144,18 +149,23 @@ if '-discogs' in sys.argv:
             
             #if -noTags is not included:
             if '-noTags' not in sys.argv:
+                print('Begin tagging process')
                 try:
-                    audio = EasyID3(outputFileLocation)
-                except ID3NoHeaderError:
-                    audio = EasyID3()
-            
-                audio['title'] = track['title'] 
-                audio['artist'] = artistString
-                audio['album'] = jsonData['title']
-                audio['date'] = jsonData['released']
-                audio['tracknumber'] = str(trackNum)
-                audio.save(outputFileLocation)
+                    audio = EasyID3(outputFileLocation) 
+                except mutagen.id3.ID3NoHeaderError:
+                    print('exception caught')
+                    audio = mutagen.File(outputFileLocation, easy=True)
+                        
+                    audio['title'] = track['title'] 
+                    audio['artist'] = artistString
+                    audio['album'] = jsonData['title']
+                    audio['date'] = jsonData['released']
+                    audio['tracknumber'] = str(trackNum)
+                    audio.save(outputFileLocation, v1=2)
 
+            else:
+                print('do not do tags')
+                            
             if '-img' in sys.argv:
                 imgNameIndex = sys.argv.index('-img')
                 imgName = sys.argv[imgNameIndex+1]
