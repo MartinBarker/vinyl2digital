@@ -2,8 +2,26 @@ import os
 import sys
 import requests
 import json
+import mutagen
 from mutagen.easyid3 import EasyID3
-from mutagen.id3 import ID3, APIC
+from mutagen.id3 import ID3, APIC, ID3NoHeaderError
+from mutagen.mp3 import MP3 
+
+from eyed3 import id3 
+
+#from pytag import Audio
+
+import re
+#import re 
+#import unicodedata
+
+def slugify(value):
+    """
+    Remove any chars from string that arent english characters or numbers
+    I intend on fixing this in the future
+    """
+    valStr = re.sub('[^A-Za-z0-9]+', ' ', value)
+    return valStr
 
 #startup audacity pipe commands
 if sys.platform == 'win32':
@@ -118,21 +136,36 @@ if '-discogs' in sys.argv:
             #export each audacity selection
             outputLocation = sys.argv[len(sys.argv)-1]
             
-            outputFileLocation = outputLocation + '\\' + str(trackNum) + ". " + track['title'] + ".mp3" 
+            #remove quotes from tracktitle
+            trackTitle = track['title']
+            trackTitle = slugify(trackTitle)
+            print("--------- trackTitle = ", trackTitle)
+
+            outputFileLocation = outputLocation + '\\' + str(trackNum) + ". " + trackTitle + ".mp3" 
 
             print("outputFileLocation = ", outputFileLocation)
+
             do_command('Export2: Mode=Selection Filename="' + outputFileLocation + '" NumChannels=2 ')
+            
+            #if -noTags is not included:
+            if '-noTags' not in sys.argv:
+                print('Begin tagging process')
+                try:
+                    audio = EasyID3(outputFileLocation) 
+                except mutagen.id3.ID3NoHeaderError:
+                    print('exception caught')
+                    audio = mutagen.File(outputFileLocation, easy=True)
+                        
+                    audio['title'] = track['title'] 
+                    audio['artist'] = artistString
+                    audio['album'] = jsonData['title']
+                    audio['date'] = jsonData['released']
+                    audio['tracknumber'] = str(trackNum)
+                    audio.save(outputFileLocation, v1=2)
 
-            #tag output file
-            audio = EasyID3(outputFileLocation) 
-            audio['title'] = track['title'] 
-            audio['artist'] = artistString
-            audio['album'] = jsonData['title']
-            audio['date'] = jsonData['released']
-            audio['tracknumber'] = str(trackNum)
-            audio.save()
-            trackNum = trackNum + 1
-
+            else:
+                print('do not do tags')
+                            
             if '-img' in sys.argv:
                 imgNameIndex = sys.argv.index('-img')
                 imgName = sys.argv[imgNameIndex+1]
@@ -148,8 +181,8 @@ if '-discogs' in sys.argv:
                         data=albumart.read()
                     )
                 audio.save()
-
+            
+            trackNum = trackNum + 1
     else:
         print("unsuccessful discogs api call")
-    
     
