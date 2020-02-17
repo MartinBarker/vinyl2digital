@@ -7,13 +7,13 @@ from mutagen.easyid3 import EasyID3
 from mutagen.id3 import ID3, APIC, ID3NoHeaderError
 from mutagen.mp3 import MP3 
 
-from eyed3 import id3 
-
-#from pytag import Audio
+#from eyed3 import id3 
 
 import re
 #import re 
 #import unicodedata
+
+print('Martin start')
 
 def slugify(value):
     """
@@ -65,7 +65,7 @@ def get_response():
     while line != '\n':
         result += line
         line = FROMFILE.readline()
-        #print(" I read line:["+line+"]")
+    #print(" I read line:["+line+"]")
     return result
 
 def do_command(command):
@@ -76,21 +76,25 @@ def do_command(command):
     return response
 
 print('~ vinyl2digital ~')
-#quick_test()
 
 if '-h' in sys.argv:
     print('Welcome to the vinyl2digital pip package.')
     print('\n ~ Tagging Source Flags ~ \n')
-    print('-t                             //test audacity pipe "Help" commands')
-    print('-h                             //view the help page')
-    print('-discogs 2342323               //discogs release ID from URL to base tags off of')
-    print('-img front.jpg                 //(optional) filename of image to set as albumart for mp3 file tag')
-    print('The last argument is always the output destination filepath.')
+    print('-t                                //test audacity pipe "Help" commands')
+    print('-h                                //view the help page')
+    print('-discogs 2342323                  //discogs release ID from URL to base tags off of')
+    print('-img front.jpg                    //(optional) filename of image to set as albumart for mp3 file tag')
+    print('-output "/C/full/path/to/output"  //folder where the files will be exported to')
 
 if '-t' in sys.argv:
     #test audacity connection
     do_command('Help: Command=Help')
     do_command('Help: Command="GetInfo"')  
+
+if '-output' in sys.argv:
+    #get output filepath location
+    outputLocationIndex = sys.argv.index('-output')
+    outputLocation = sys.argv[outputLocationIndex+1]
 
 if '-discogs' in sys.argv:
     #get discogs release id
@@ -117,72 +121,59 @@ if '-discogs' in sys.argv:
             else:
                 print('else')
                 artistString = artistString + ', ' + artist['name']
-            artistNum = artistNum + 1
+                artistNum = artistNum + 1
         print("artistString = ", artistString)
 
-        #skip to start of track
-        do_command('Select: Start=0 End=0')
-    
-        #get current working dir
-        os.chdir(os.path.dirname(__file__))
+    #skip to start of track
+    do_command('Select: Start=0 End=0')
+ 
+    #get current working dir
+    os.chdir(os.path.dirname(__file__))
 
-        #get tracklist
-        tracklist = jsonData['tracklist']
-        print("\n" + str(len(tracklist)) + " songs in tracklist. ")
-        trackNum = 1
-        for track in tracklist:
-            #go to next clip for selection
-            do_command('SelNextClip')
-            #export each audacity selection
-            outputLocation = sys.argv[len(sys.argv)-1]
-            
-            #remove quotes from tracktitle
-            trackTitle = track['title']
-            trackTitle = slugify(trackTitle)
-            print("--------- trackTitle = ", trackTitle)
+    #get tracklist
+    tracklist = jsonData['tracklist']
+    print("\n" + str(len(tracklist)) + " songs in tracklist. ")
+    trackNum = 1
+    #render each track
+    for track in tracklist:
+        #go to next clip for selection
+        do_command('SelNextClip')
+        
+        #export each audacity selection
+        #outputLocation = sys.argv[len(sys.argv)-1]
+ 
+        #remove quotes from tracktitle
+        trackTitle = track['title']
+        trackTitle = slugify(trackTitle)
+        print("--------- trackTitle = ", trackTitle)
+        if sys.platform == 'win32':
+            outputFileLocation = outputLocation + '\\' + str(trackNum) + ". " + trackTitle + ".mp3"
+        else:
+            print('mac option outputfile')
+            outputFileLocation = outputLocation + '/' + str(trackNum) + ". " + trackTitle + ".mp3"
+            #"/Users/martin/Documents/tempFolder/song.mp3" 
+ 
+        print("outputFileLocation = ", outputFileLocation)
 
-            outputFileLocation = outputLocation + '\\' + str(trackNum) + ". " + trackTitle + ".mp3" 
+        do_command('Export2: Mode=Selection Filename="' + outputFileLocation + '" NumChannels=2 ')
+ 
+        #if -noTags is not included:
+        if '-noTags' not in sys.argv:
+            print('Begin tagging process')
+            try:
+                audio = EasyID3(outputFileLocation) 
+            except mutagen.id3.ID3NoHeaderError:
+                print('exception caught')
+ 
+            audio = mutagen.File(outputFileLocation, easy=True)    
+            audio['title'] = track['title'] 
+            audio['artist'] = artistString
+            audio['album'] = jsonData['title']
+            audio['date'] = jsonData['released']
+            audio['tracknumber'] = str(trackNum)
+            audio.save(outputFileLocation, v1=2)
 
-            print("outputFileLocation = ", outputFileLocation)
+        else:
+            print('do not do tags')
 
-            do_command('Export2: Mode=Selection Filename="' + outputFileLocation + '" NumChannels=2 ')
-            
-            #if -noTags is not included:
-            if '-noTags' not in sys.argv:
-                print('Begin tagging process')
-                try:
-                    audio = EasyID3(outputFileLocation) 
-                except mutagen.id3.ID3NoHeaderError:
-                    print('exception caught')
-                    audio = mutagen.File(outputFileLocation, easy=True)
-                        
-                    audio['title'] = track['title'] 
-                    audio['artist'] = artistString
-                    audio['album'] = jsonData['title']
-                    audio['date'] = jsonData['released']
-                    audio['tracknumber'] = str(trackNum)
-                    audio.save(outputFileLocation, v1=2)
-
-            else:
-                print('do not do tags')
-                            
-            if '-img' in sys.argv:
-                imgNameIndex = sys.argv.index('-img')
-                imgName = sys.argv[imgNameIndex+1]
-                #set song albumart image
-                audio = ID3(outputFileLocation)
-                imgLocation = outputLocation + '\\' + imgName
-                print('imgLocation = ', imgLocation)
-                with open(imgLocation, 'rb') as albumart:
-                    audio['APIC'] = APIC(
-                        encoding=3,
-                        mime='image/jpeg',
-                        type=3, desc=u'Cover',
-                        data=albumart.read()
-                    )
-                audio.save()
-            
-            trackNum = trackNum + 1
-    else:
-        print("unsuccessful discogs api call")
-    
+        trackNum = trackNum + 1

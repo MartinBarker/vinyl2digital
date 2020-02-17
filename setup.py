@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="vinyl2digital",
-    version="0.1.16",
+    version="0.1.17",
     author="Martin Barker",
     author_email="martinbarker99@gmail.com",
     description="A small example package",
@@ -16,9 +16,6 @@ setuptools.setup(
     install_requires=[
         'requests',
         'mutagen',
-        'eyed3',
-        #'re',
-        #'unicodedata',
     ],
     classifiers=[
         "Programming Language :: Python :: 3",

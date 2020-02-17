@@ -1,3 +1,2 @@
 requests
 mutagen
-eyed3

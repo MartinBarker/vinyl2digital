@@ -1,4 +1,4 @@
-# vinyl2digital
+# commandLineMusicVideo
 
 This is a Python3 [pip package](https://pypi.org/project/vinyl2digital) that connencts to Audacity's [mod-script-pipe for Python scripting](https://manual.audacityteam.org/man/scripting.html).  
 
@@ -7,8 +7,8 @@ This package will batch render each selection of an Audacity track to mp3 files 
 ![](demogif.gif)
 
 ## Quickstart
-* Install the package with this command: ```pip install vinyl2digital==0.1.4``` or ```pip3 install vinyl2digital==0.1.4```
-* Launch Audacity from your terminal (Windows 10: ```start audacity.exe```)
+* Install the package with this command: ```pip install vinyl2digital``` 
+* Launch Audacity from your terminal (Windows 10: ```start audacity.exe```, Linux/Mac: ```open -a Audacity```)
 * Record your audio, and splice each song as its own selection on the track (place the cursor and press Ctrl+i)
 ![step1](https://i.imgur.com/s7ktUmZ.png)
 * Run the installed package with ```python3 -m vinyl2digital -h -t``` to view the help page and test your package's connecting to Audacity.
@@ -33,8 +33,6 @@ This command:
 ```--discogs 2342323``` Discogs release ID from URL to base tags off of.
 
 ```--img front.jpg``` (optional) Filename of image located inside your output folder to use as albumart for mp3 files.
-
-```-noTags``` Including this tag means your mp3 files won't be tagged for title, artist, album, year, and track number.
 
 ```-h``` Display help.
    
