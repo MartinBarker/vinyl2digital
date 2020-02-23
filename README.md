@@ -18,7 +18,7 @@ This package will batch render each selection of an Audacity track to mp3 files 
 Follow the step's listed on [this](https://manual.audacityteam.org/man/scripting.html#Enable_mod-script-pipe) page: Go to "Audacity -> Edit -> Preferences -> Modules" and set the "mod-script-pipe" parameter to "Enabled", restart Audacity and confirm that "mod-script-pipe" is set to "Enabled" by default.
 
 ## Example commands:
-```python3 -m vinyl2digital -discogs 1525832 -img front.jpg "C:\Users\marti\Documents\martinradio\uploads\testFolder"```
+```python3 -m vinyl2digital -discogs 1525832 -img front.jpg -output "C:\Users\marti\Documents\martinradio\uploads\testFolder"```
 This command:
 * Will get the metadata from the [Discogs release page with id=1525832](https://www.discogs.com/Anthony-And-The-Camp-Suspense/release/1525832) 
 * Will tag the output mp3 files with albumart from the location: ```C:\Users\marti\Documents\martinradio\uploads\testFolder\front.jpg```
@@ -28,11 +28,11 @@ This command:
 
 ```-t``` Test audacity pipe "Help" commands.
 
-```--h``` View the help page
+```-h``` View the help page
 
-```--discogs 2342323``` Discogs release ID from URL to base tags off of.
+```-discogs 2342323``` Discogs release ID from URL to base tags off of.
 
-```--img front.jpg``` (optional) Filename of image located inside your output folder to use as albumart for mp3 files.
+```-img front.jpg``` (optional) Filename of image located inside your output folder to use as albumart for mp3 files.
 
-```-h``` Display help.
+```-output "filepath" ``` Full filepath to folder where you want to export the files.
    
