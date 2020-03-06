@@ -138,18 +138,26 @@ if '-discogs' in sys.argv:
     for track in tracklist:
         #go to next clip for selection
         do_command('SelNextClip')
-        
-        #export each audacity selection
-        #outputLocation = sys.argv[len(sys.argv)-1]
+        #export selection
  
         #remove quotes from tracktitle
         trackTitle = track['title']
         trackTitle = slugify(trackTitle)
         print("--------- trackTitle = ", trackTitle)
+        #create final output filepath with filename and extension (audacity needs this)
         if sys.platform == 'win32':
+            #if outputLocation folder doesn't exist, create it
+            if not os.path.exists(outputLocation):
+                os.makedirs(outputLocation)
+                print('directory created')
+
             outputFileLocation = outputLocation + '\\' + str(trackNum) + ". " + trackTitle + ".mp3"
         else:
-            print('mac option outputfile')
+            print('mac/linux option outputfile')
+            #if outputLocation folder doesn't exist, create it
+            if not os.path.exists(outputLocation):
+                os.makedirs(outputLocation)
+                print('directory created')
             outputFileLocation = outputLocation + '/' + str(trackNum) + ". " + trackTitle + ".mp3"
             #"/Users/martin/Documents/tempFolder/song.mp3" 
  
