@@ -140,10 +140,11 @@ if '-discogs' in sys.argv:
         do_command('SelNextClip')
         #export selection
  
-        #remove quotes from tracktitle
+        #get tracktitle from discogs
         trackTitle = track['title']
+        #sanitize tracktitle
         trackTitle = slugify(trackTitle)
-        print("--------- trackTitle = ", trackTitle)
+        print("sanitized trackTitle = ", trackTitle)
         #create final output filepath with filename and extension (audacity needs this)
         if sys.platform == 'win32':
             #if outputLocation folder doesn't exist, create it
