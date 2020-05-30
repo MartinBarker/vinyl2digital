@@ -6,21 +6,14 @@ import mutagen
 from mutagen.easyid3 import EasyID3
 from mutagen.id3 import ID3, APIC, ID3NoHeaderError
 from mutagen.mp3 import MP3 
-
-#from eyed3 import id3 
-
 import re
-#import re 
-#import unicodedata
-
-print('Martin start')
 
 def slugify(value):
     """
     Remove any chars from string that arent english characters or numbers
     I intend on fixing this in the future
     """
-    valStr = re.sub('[^A-Za-z0-9]+', ' ', value)
+    valStr = re.sub('[^A-Za-z0-9()]+', ' ', value)
     return valStr
 
 #startup audacity pipe commands
@@ -138,18 +131,27 @@ if '-discogs' in sys.argv:
     for track in tracklist:
         #go to next clip for selection
         do_command('SelNextClip')
-        
-        #export each audacity selection
-        #outputLocation = sys.argv[len(sys.argv)-1]
+        #export selection
  
-        #remove quotes from tracktitle
+        #get tracktitle from discogs
         trackTitle = track['title']
+        #sanitize tracktitle
         trackTitle = slugify(trackTitle)
-        print("--------- trackTitle = ", trackTitle)
+        print("sanitized trackTitle = ", trackTitle)
+        #create final output filepath with filename and extension (audacity needs this)
         if sys.platform == 'win32':
+            #if outputLocation folder doesn't exist, create it
+            if not os.path.exists(outputLocation):
+                os.makedirs(outputLocation)
+                print('directory created')
+
             outputFileLocation = outputLocation + '\\' + str(trackNum) + ". " + trackTitle + ".mp3"
         else:
-            print('mac option outputfile')
+            print('mac/linux option outputfile')
+            #if outputLocation folder doesn't exist, create it
+            if not os.path.exists(outputLocation):
+                os.makedirs(outputLocation)
+                print('directory created')
             outputFileLocation = outputLocation + '/' + str(trackNum) + ". " + trackTitle + ".mp3"
             #"/Users/martin/Documents/tempFolder/song.mp3" 
  
@@ -166,10 +168,30 @@ if '-discogs' in sys.argv:
                 print('exception caught')
  
             audio = mutagen.File(outputFileLocation, easy=True)    
-            audio['title'] = track['title'] 
-            audio['artist'] = artistString
-            audio['album'] = jsonData['title']
-            audio['date'] = jsonData['released']
+            #song title
+            try:
+                audio['title'] = track['title'] 
+            except KeyError:
+                audio['title'] = ''
+            
+            #release artist
+            try:
+                audio['artist'] = artistString
+            except KeyError:
+                audio['artist'] = ''
+
+            #release title
+            try:
+                audio['album'] = jsonData['title']
+            except KeyError:
+                audio['artist'] = ''
+
+            #release year
+            try:
+                audio['date'] = jsonData['released']
+            except KeyError:
+                audio['date'] = ''
+            #release track number
             audio['tracknumber'] = str(trackNum)
             audio.save(outputFileLocation, v1=2)
 
