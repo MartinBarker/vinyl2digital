@@ -71,48 +71,13 @@ def do_command(command):
     print("Rcvd: <<< \n" + response)
     return response
 
-""" bin2dig functions: """
-def begin_bin2dig(flags):
-    print("~~ bin2dig ~~ flags = ", flags)
-    
-    if '-t' in flags:
-        do_command(r'Export2: Mode=Selection Filename="C:\Users\marti\Documents\martinradio\uploads\zxc.flac" NumChannels=2')
-        #renderAudacityTracks(metadataInput, outputLocation, outputFormat):
-
-    #get input metadata object {}
-    if '-i' in flags:
-        inputIndex = flags.index('-i')
-        inputValueIndex = flags[inputIndex+1]
-        if inputValueIndex == 'discogs':
-            discogsCode = inputValueIndex = flags[inputIndex+2]
-            metadataInput = getDiscogsTags(discogsCode)
-
-        elif inputValueIndex == 'manual':
-            metadataInput = getManualTags(True)
-
-    #get output format
-    outputFormat = ""
-    if '-f' in flags:
-        outputFormatIndex = flags.index('-f')
-        outputFormat = flags[outputFormatIndex+1]
-
-    #choose output filepath
-    outputFilepath = ""
-    if '-o' in flags:
-        outputFilepathIndex = flags.index('-o')
-        outputFilepath = flags[outputFilepathIndex+1]
-        #export Audacity tracks
-        print("outputFilepath = ", outputFilepath)
-        print("outputFormat = ", outputFormat)
-        renderAudacityTracks(metadataInput, outputFilepath, outputFormat)
-
 def renderAudacityTracks(metadataInput, outputLocation, outputFormat):
     print("render() len(metadataInput[tracks] = ", len(metadataInput["tracks"]))
     #render each track in tracks
     for i in range(0, len(metadataInput["tracks"])):
         print("i = ", i, ", max = ", len(metadataInput["tracks"]))
-        title = metadataInput["tracks"][i]
-        artist = metadataInput["artist"]
+        title = metadataInput["tracks"][i]['trackTitle']
+        artist = metadataInput["tracks"][i]['trackArtist']
         album = metadataInput["album"]
         year = metadataInput["year"]
         #go to next clip for selection
@@ -141,7 +106,7 @@ def renderAudacityTracks(metadataInput, outputLocation, outputFormat):
         cmdResult = do_command(renderCommand)
         print("cmdResult = ", cmdResult)
         time.sleep(5) # Delay for 5 seconds.
-        '''
+        
         #file should be rendered, so now begin tagging process
         if outputFormat == 'flac':
             #wait until file has been completely rendered before tagging
@@ -201,8 +166,8 @@ def renderAudacityTracks(metadataInput, outputLocation, outputFormat):
             except mutagen.id3.ID3NoHeaderError:
                 print('exception caught')
         
-             audio = mutagen.File(outputFileLocation, easy=True)   
-            ''' 
+            audio = mutagen.File(outputFileLocation, easy=True)   
+            
     
 
 def getDiscogsTags(discogsURL):
@@ -240,11 +205,15 @@ def getDiscogsTags(discogsURL):
         trackNum = 1
         for track in tracklist:
             if track['type_'] == 'track':
+                #create trackArtist string
+                trackArtist = ''
+                trackArtists = track['artists']
+                for artist in trackArtists:
+                    trackArtist = trackArtist + artist["name"]
                 trackTitle = track['title']
                 #sanitize tracktitle
                 trackTitle = slugify(trackTitle)
-                print("track ", trackNum, ", title = ", trackTitle)
-                tracks.append(trackTitle)
+                tracks.append({'trackNum':trackNum, 'trackTitle':trackTitle, 'trackArtist':trackArtist})
                 trackNum = trackNum + 1
         
         #get album title
@@ -255,161 +224,80 @@ def getDiscogsTags(discogsURL):
     metadataTags = {'album':albumTitle, 'artist':artistString, 'year':releaseDate, 'tracks':tracks }    
     return metadataTags
 
+def getManualTags():
+    metadataTags = {}
+
+    #metadataTags = {'album':'Circean', 'artist':'Circean', 'year':'1996', 'tracks':['Limbo Land', 'Miles Away', 'Hide and Seek', 'Canvas', 'His Holographic Image', 'Action Pose', 'Paper boat race', 'Quintet and Snow', 'Unintrestable Clous', 'Sonorous', 'Faraway So Close', 'Bloody Hands'] }    
+    print('Is there one artst for this release or multiple artists?')
+    print("Type '1' for one artist")
+    print("Type '2' for multiple artists")
+    numArtists = input("")
+    if numArtists == "1":
+        #prompt for artist name
+        artistName = input("Enter artist name: ")
+
+    #prompt for album title
+    album = input("Enter album title: ")
+    
+    #prompt for year
+    year = input("Enter release date year: ")
+
+    #prompt for number of tracks
+    numberOfTracks = input("Number of tracks for this album: ")
+    
+    #get trackTitle for each track
+    tracks = []
+    for i in range(1, int(numberOfTracks)+1):
+        trackTitle = input('Enter track (%d) title: ' % i)    
+        if numArtists == "2":
+            trackArtist = input("Enter track artist: ")
+            tracks.append({'trackTitle':trackTitle, 'trackArtist':trackArtist})
+        elif numArtists == "1":
+            tracks.append({'trackTitle':trackTitle, 'trackArtist':artistName})
+
+    #contruct metadataTags
+    metadataTags = {'album':album, 'artist':artistName, 'year':year, 'tracks':tracks }
+
+    return metadataTags
+
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 print('~ vinyl2digital ~')
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-""" package initialization setup: """
-if '-bin2dig' or '-dig2vid' in sys.argv:
-    #set default indexes
-    bin2digIndex = len(sys.argv)
-    bin2digFlags = []
-
-    dig2vidIndex = len(sys.argv)
-    dig2vidFlags = []
-
-    #get flags / args for bin2dig or dig2vid
-    if '-bin2dig' in sys.argv:
-        print("trigger bin2dig")
-        #setupAudacityPipeline()
-        bin2digStartIndex = sys.argv.index('-bin2dig')
-        argsSplice1 = sys.argv[bin2digStartIndex:len(sys.argv)]
-        if '-dig2vid' in argsSplice1:
-            dig2vidIndex = argsSplice1.index('-dig2vid')
-            bin2digFlags = argsSplice1[0:dig2vidIndex]
-        else:
-            bin2digFlags = argsSplice1[0:len(argsSplice1)]
-        #execute flags
-        
-        begin_bin2dig(bin2digFlags)
-
-if '-h' in sys.argv:
+flags = sys.argv
+if '-h' in flags:
     print('Welcome to the vinyl2digital pip package.')
     print('\n ~ Tagging Source Flags ~ \n')
-    print('-t                                //test audacity pipe "Help" commands')
     print('-h                                //view the help page')
-    print('-discogs 2342323                  //discogs release ID from URL to base tags off of')
-    print('-img front.jpg                    //(optional) filename of image to set as albumart for mp3 file tag')
-    print('-o "/C/full/path/to/output"  //folder where the files will be exported to')
+    print('-i discogs https://www.discogs.com/Lee-Vanderbilt-Get-Into-What-Youre-In/release/974741      //use a discogs url as input for metadata')
+    print('-i manual      //use manual entry as input for metadata')
+    print('-f flac       //choose output audio file format (in this case, flac)')
+    #print('-img front.jpg                    //(optional) filename of image to set as albumart for mp3 file tag')
+    print('-o "..\..\Documents\Folder"  //folder where the files will be exported to')
 
-if '-t' in sys.argv:
-    #test audacity connection
-    do_command('Help: Command=Help')
-    do_command('Help: Command="GetInfo"')  
+#get input metadata object {}
+if '-i' in flags:
+    inputIndex = flags.index('-i')
+    inputValueIndex = flags[inputIndex+1]
+    if inputValueIndex == 'discogs':
+        discogsCode = inputValueIndex = flags[inputIndex+2]
+        metadataInput = getDiscogsTags(discogsCode)
 
-if '-o' in sys.argv:
-    #get output filepath location
-    outputLocationIndex = sys.argv.index('-o')
-    outputLocation = sys.argv[outputLocationIndex+1]
+    elif inputValueIndex == 'manual':
+        metadataInput = getManualTags()
 
-if '-discogs' in sys.argv:
-    #get discogs release id
-    discogsReleaseIDIndex = sys.argv.index('-discogs')
-    discogsReleaseID = sys.argv[discogsReleaseIDIndex+1]
+#get output format
+outputFormat = ""
+if '-f' in flags:
+    outputFormatIndex = flags.index('-f')
+    outputFormat = flags[outputFormatIndex+1]
 
-    response = requests.get('https://api.discogs.com/releases/'+discogsReleaseID)
-    print("response = ")
-    print(response)
-
-    print("discogs api response code = ", response.status_code)
-    #print("response.text = ", response.text)
-
-    if response.status_code == 200:
-        #get titles from discogs api call
-        print("successful discogs api call") 
-        jsonData = json.loads(response.text)
-        #get artist(s) name as string
-        artistString = ""
-        artistNum = 0
-        for artist in jsonData['artists']:
-            if artistNum == 0:
-                artistString = artist['name']
-            else:
-                print('else')
-                artistString = artistString + ', ' + artist['name']
-                artistNum = artistNum + 1
-        print("artistString = ", artistString)
-
-    #skip to start of track
-    do_command('Select: Start=0 End=0')
- 
-    #get current working dir
-    os.chdir(os.path.dirname(__file__))
-
-    #get tracklist
-    tracklist = jsonData['tracklist']
-    print("\n" + str(len(tracklist)) + " songs in tracklist. ")
-    trackNum = 1
-    #render each track
-    for track in tracklist:
-        #go to next clip for selection
-        do_command('SelNextClip')
-        #export selection
- 
-        #get tracktitle from discogs
-        trackTitle = track['title']
-        #sanitize tracktitle
-        trackTitle = slugify(trackTitle)
-        print("sanitized trackTitle = ", trackTitle)
-        #create final output filepath with filename and extension (audacity needs this)
-        if sys.platform == 'win32':
-            print('outputLocation = ' + outputLocation)
-            #if outputLocation folder doesn't exist, create it
-            #if not os.path.exists(outputLocation):
-            #    os.makedirs(outputLocation)
-            #    print('directory created')
-
-            outputFileLocation = outputLocation + '\\' + str(trackNum) + ". " + trackTitle + ".mp3"
-        else:
-            print('mac/linux option outputfile')
-            #if outputLocation folder doesn't exist, create it
-            if not os.path.exists(outputLocation):
-                os.makedirs(outputLocation)
-                print('directory created')
-            outputFileLocation = outputLocation + '/' + str(trackNum) + ". " + trackTitle + ".mp3"
-            #"/Users/martin/Documents/tempFolder/song.mp3" 
- 
-        print("outputFileLocation = ", outputFileLocation)
-
-        do_command('Export2: Mode=Selection Filename="' + outputFileLocation + '" NumChannels=2 ')
- 
-        #if -noTags is not included:
-        if '-noTags' not in sys.argv:
-            print('Begin tagging process')
-            try:
-                audio = EasyID3(outputFileLocation) 
-            except mutagen.id3.ID3NoHeaderError:
-                print('exception caught')
- 
-            audio = mutagen.File(outputFileLocation, easy=True)    
-            #song title
-            try:
-                audio['title'] = track['title'] 
-            except KeyError:
-                audio['title'] = ''
-            
-            #release artist
-            try:
-                audio['artist'] = artistString
-            except KeyError:
-                audio['artist'] = ''
-
-            #release title
-            try:
-                audio['album'] = jsonData['title']
-            except KeyError:
-                audio['artist'] = ''
-
-            #release year
-            try:
-                audio['date'] = jsonData['released']
-            except KeyError:
-                audio['date'] = ''
-            #release track number
-            audio['tracknumber'] = str(trackNum)
-            audio.save(outputFileLocation, v1=2)
-
-        else:
-            print('do not do tags')
-
-        trackNum = trackNum + 1
+#choose output filepath
+outputFilepath = ""
+if '-o' in flags:
+    outputFilepathIndex = flags.index('-o')
+    outputFilepath = flags[outputFilepathIndex+1]
+    #export Audacity tracks
+    print("outputFilepath = ", outputFilepath)
+    print("outputFormat = ", outputFormat)
+    renderAudacityTracks(metadataInput, outputFilepath, outputFormat)
