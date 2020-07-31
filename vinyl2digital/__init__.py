@@ -207,9 +207,14 @@ def getDiscogsTags(discogsURL):
             if track['type_'] == 'track':
                 #create trackArtist string
                 trackArtist = ''
-                trackArtists = track['artists']
-                for artist in trackArtists:
-                    trackArtist = trackArtist + artist["name"]
+                print('track = ', track)
+                if 'artists' in track:
+                    trackArtists = track['artists']
+
+                    for artist in trackArtists:
+                        trackArtist = trackArtist + artist["name"]
+                else:
+                    trackArtist = artistString
                 trackTitle = track['title']
                 #sanitize tracktitle
                 trackTitle = slugify(trackTitle)
@@ -285,6 +290,8 @@ if '-i' in flags:
 
     elif inputValueIndex == 'manual':
         metadataInput = getManualTags()
+    
+    print('metadataInput = ', metadataInput)
 
 #get output format
 outputFormat = ""
