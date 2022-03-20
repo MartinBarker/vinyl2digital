@@ -5,10 +5,10 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="vinyl2digital",
-    version="0.1.18",
+    version="1.0.0",
     author="Martin Barker",
     author_email="martinbarker99@gmail.com",
-    description="A small example package",
+    description="Batch render an audacity recording",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/MartinBarker/vinyl2digital",

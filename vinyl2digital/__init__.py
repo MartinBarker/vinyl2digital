@@ -80,6 +80,7 @@ def begin_bin2dig(flags):
         #renderAudacityTracks(metadataInput, outputLocation, outputFormat):
 
     #get input metadata object {}
+    metadataInput = {}
     if '-i' in flags:
         inputIndex = flags.index('-i')
         inputValueIndex = flags[inputIndex+1]
@@ -89,13 +90,15 @@ def begin_bin2dig(flags):
 
         elif inputValueIndex == 'manual':
             metadataInput = getManualTags(True)
-
+    print("caught -i, metadataInput=")
+    print(metadataInput)
     #get output format
     outputFormat = ""
     if '-f' in flags:
         outputFormatIndex = flags.index('-f')
         outputFormat = flags[outputFormatIndex+1]
 
+    print("caught -f")
     #choose output filepath
     outputFilepath = ""
     if '-o' in flags:
@@ -107,7 +110,8 @@ def begin_bin2dig(flags):
         renderAudacityTracks(metadataInput, outputFilepath, outputFormat)
 
 def renderAudacityTracks(metadataInput, outputLocation, outputFormat):
-    print("render() len(metadataInput[tracks] = ", len(metadataInput["tracks"]))
+    print("renderAudacityTracks() metadataInput = ")
+    print(metadataInput)
     #render each track in tracks
     for i in range(0, len(metadataInput["tracks"])):
         print("i = ", i, ", max = ", len(metadataInput["tracks"]))
@@ -205,18 +209,45 @@ def renderAudacityTracks(metadataInput, outputLocation, outputFormat):
             ''' 
     
 
+'''
+Input: Full Discogs URL
+Output: Metadata Tags
+Example Inputs:
+	- https://www.discogs.com/release/2019460-Various-The-New-England-Teen-Scene
+	- https://www.discogs.com/release/2019460
+	- https://www.discogs.com/master/117696-Exuma-Exuma
+	- https://www.discogs.com/master/117696
+'''
 def getDiscogsTags(discogsURL):
     metadataTags = {}
+    discogsURL=discogsURL.strip()
     #get ID and type from discogsURL
     discogsSplit = discogsURL.rsplit('/', 2)
-    discogsID = discogsSplit[-1]
+    print("getDiscogsTags() discogsSplit = ")
+    print(discogsSplit)
+    
     discogsType = discogsSplit[-2]
+    print("getDiscogsTags() discogsType = "+discogsType)
+
+    discogsID = discogsSplit[2]
+    print("getDiscogsTags() begin discogsID = "+discogsID)
+    if "-" in discogsID:
+        print(" URL has extra strings")
+        discogsIDSplit = discogsID.split('-')
+        print(discogsIDSplit)
+        discogsID=discogsIDSplit[0]
+    
+    print("getDiscogsTags() end discogsID = "+discogsID)
 
     #make discogs api call
     requestURL = 'https://api.discogs.com/' + discogsType + 's/' + discogsID
     print("api request URL = ")
+    print(requestURL)
+
     response = requests.get(requestURL)
     discogsAPIResponse_status_code = response.status_code
+    print("discogsAPIResponse_status_code=")
+    print(discogsAPIResponse_status_code)
     if discogsAPIResponse_status_code == 200:
         print("discogsAPIResponse_status_code == 200")
         #get artist name string
@@ -248,11 +279,15 @@ def getDiscogsTags(discogsURL):
                 trackNum = trackNum + 1
         
         #get album title
+        albumTitle=''
         albumTitle = jsonData['title']
         #get releaseDate
         releaseDate = jsonData['released']
-        
-    metadataTags = {'album':albumTitle, 'artist':artistString, 'year':releaseDate, 'tracks':tracks }    
+    print('albumTitle=')
+    print(albumTitle)
+    metadataTags = {'album':albumTitle, 'artist':artistString, 'year':releaseDate, 'tracks':tracks }   
+    print("metadataTags=")
+    print(metadataTags) 
     return metadataTags
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
