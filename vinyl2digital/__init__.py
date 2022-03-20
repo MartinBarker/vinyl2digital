@@ -178,13 +178,27 @@ print('~ vinyl2digital ~')
 # -h 
 # Print help information
 if '-h' in sys.argv:
-    print('Welcome to the vinyl2digital pip package.')
-    print('\n ~ Tagging Source Flags ~ \n')
-    print('-t                                //test audacity pipe "Help" commands')
-    print('-h                                //view the help page')
-    print('-discogs 2342323                  //discogs release ID from URL to base tags off of')
-    print('-img front.jpg                    //(optional) filename of image to set as albumart for mp3 file tag')
-    print('-o "/C/full/path/to/output"  //folder where the files will be exported to')
+    print('Welcome to the vinyl2digital pip package: v1.0.1')
+    
+    print('-t')
+    print('Test audacity pipe "Help" commands')
+
+    print('-h')
+    print('View the help page')
+    
+    print('-i discogs https://www.discogs.com/master/14720-Pink-Floyd-Obscured-By-Clouds')
+    print('Take discogs url as input')
+
+    print('-i 12')
+    print('Export x number of audio files with default filenames, in this case 12 audio files would be exported.')
+
+    print('-f flac')
+    print('Set output audio file format (flac, mp3, etc...)')
+
+
+    print('-o "E:\outputFolder"')
+    print('Set output folder location')
+    print('\nEnd of help output\n')
 
 # -t
 # Test audacity connection

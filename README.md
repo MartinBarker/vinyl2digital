@@ -72,11 +72,11 @@ python -m vinyl2digital -t
 * Here are some example commands for vinyl2digital on Win10 command prompt:
 * ## Export tracks as flac using a Discogs URL
 ```
-python3 "..\..\Users\marti\Documents\projects\vinyl2digital\vinyl2digital\__init__.py" -i discogs https://www.discogs.com/release/2019460-Various-The-New-England-Teen-Scene -f flac -o "E:\martinradio\rips\vinyl\NewEnglandTeenScene" 
+python -m vinyl2digital -i discogs https://www.discogs.com/release/2019460-Various-The-New-England-Teen-Scene -f flac -o "E:\martinradio\rips\vinyl\NewEnglandTeenScene" 
 ```
 * ## Export 5 tracks as mp3 using default filenames
 ```
-python3 "..\..\Users\marti\Documents\projects\vinyl2digital\vinyl2digital\__init__.py" -i 5 -f mp3 -o "E:\martinradio\rips\vinyl\NewEnglandTeenScene" 
+python -m vinyl2digital -i 5 -f mp3 -o "E:\martinradio\rips\vinyl\NewEnglandTeenScene" 
 ```
 ## Development
 * In order to develop and test this code locally clone this github repo:
