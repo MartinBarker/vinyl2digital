@@ -2,7 +2,7 @@ vinyl2digital - PyPi Package
 ==================================
 **[Vinyl2Digital](https://pypi.org/project/vinyl2digital/) is a Python3 Pip Package for batch rendering multiple audio files using the [Audacity](https://www.audacityteam.org/download/) mod-script-pipe.**
 
-[![PyPi version](https://badgen.net/pypi/v/vinyl2digital/)](https://pypi.com/project/vinyl2digital) ![PyPI - Downloads](https://img.shields.io/pypi/dm/vinyl2digital) ![PyPI - License](https://img.shields.io/pypi/l/vinyl2digital) ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/vinyl2digital)
+[![PyPi version](https://badgen.net/pypi/v/vinyl2digital/)](https://pypi.org/project/vinyl2digital) ![PyPI - Downloads](https://img.shields.io/pypi/dm/vinyl2digital) ![PyPI - License](https://img.shields.io/pypi/l/vinyl2digital) ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/vinyl2digital)
 
 <img src="readme-gif-1.gif" alt="Demonstration gif" width="950"/>
 
