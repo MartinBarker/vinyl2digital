@@ -2,10 +2,13 @@ import os
 import sys
 import requests
 import json
-from mutagen.easyid3 import EasyID3
-from mutagen.id3 import ID3, APIC
+import time
+import re
 
-#startup audacity pipe commands
+'''
+Audacity mod-script-pipeline setup
+'''
+# Startup audacity pipe commands
 if sys.platform == 'win32':
     print("pipe-test.py, running on windows")
     TONAME = '\\\\.\\pipe\\ToSrvPipe'
@@ -17,78 +20,116 @@ else:
     FROMNAME = '/tmp/audacity_script_pipe.from.' + str(os.getuid())
     EOL = '\n'
 
-print("Write to  \"" + TONAME +"\"")
 if not os.path.exists(TONAME):
     print(" ..does not exist.  Ensure Audacity is running with mod-script-pipe.")
     sys.exit()
 
-print("Read from \"" + FROMNAME +"\"")
 if not os.path.exists(FROMNAME):
     print(" ..does not exist.  Ensure Audacity is running with mod-script-pipe.")
     sys.exit()
-
 print("-- Both pipes exist.  Good.")
-
 TOFILE = open(TONAME, 'w')
 print("-- File to write to has been opened")
 FROMFILE = open(FROMNAME, 'rt')
 print("-- File to read from has now been opened too\r\n")
 
+'''
+Audacity Functions
+'''
+# Send a single command to audacity mod-script-pipeline
 def send_command(command):
-    """Send a single command."""
-    print("Send: >>> \n"+command)
+    #print("Send: >>> \n"+command)
     TOFILE.write(command + EOL)
     TOFILE.flush()
 
+# Return the command response
 def get_response():
-    """Return the command response."""
     result = ''
     line = ''
     while line != '\n':
         result += line
         line = FROMFILE.readline()
-        #print(" I read line:["+line+"]")
     return result
 
+# Send one command, and return the response
 def do_command(command):
-    """Send one command, and return the response."""
     send_command(command)
     response = get_response()
-    print("Rcvd: <<< \n" + response)
+    #print("Rcvd: <<< \n" + response)
     return response
 
-print('~ vinyl2digital ~')
-#quick_test()
+'''
+Utility Functions
+'''
+# Remove any chars from string that are not english characters or numbers
+def slugify(value):
+    valStr = re.sub('[^A-Za-z0-9()]+', ' ', value)
+    return valStr
 
-if '-h' in sys.argv:
-    print('Welcome to the vinyl2digital pip package.')
-    print('\n ~ Tagging Source Flags ~ \n')
-    print('-t                             //test audacity pipe "Help" commands')
-    print('-h                             //view the help page')
-    print('-discogs 2342323               //discogs release ID from URL to base tags off of')
-    print('-img front.jpg                 //(optional) filename of image to set as albumart for mp3 file tag')
-    print('The last argument is always the output destination filepath.')
+# Format output filepath
+def formatOutputFilepath(outputLocation, outputFormat, filename):
+    #create final output filepath with filename and extension (audacity needs this)
+    if sys.platform == 'win32':
+        #if outputLocation folder doesn't exist, create it
+        if not os.path.exists(outputLocation):
+            os.makedirs(outputLocation)
+            print('directory created')
 
-if '-t' in sys.argv:
-    #test audacity connection
-    do_command('Help: Command=Help')
-    do_command('Help: Command="GetInfo"')  
+        outputFileLocation = outputLocation + '\\' + filename + "." + outputFormat 
+    else:
+        print('mac/linux option outputfile')
+        #if outputLocation folder doesn't exist, create it
+        if not os.path.exists(outputLocation):
+            os.makedirs(outputLocation)
+            print('directory created')
+        outputFileLocation = outputLocation + '' + title + "." + outputFormat 
+    outputFileLocation = os.path.abspath(outputFileLocation)
+    return outputFileLocation
 
-if '-discogs' in sys.argv:
-    #get discogs release id
-    discogsReleaseIDIndex = sys.argv.index('-discogs')
-    discogsReleaseID = sys.argv[discogsReleaseIDIndex+1]
+# Export tracks from Audacity
+def renderAudacityTracks(metadataInput, outputLocation, outputFormat):
+    # If 'tracks' key exists in metadataInput
+    if 'tracks' in metadataInput:
+        #render each track in tracks
+        for i in range(0, len(metadataInput["tracks"])):
+            print("Exporting track ", i+1, "out of", len(metadataInput["tracks"]))
+            title = metadataInput["tracks"][i]
+            #go to next clip for selection
+            do_command('SelNextClip')
+            # Set filename
+            filename = str(i+1) + '. ' + title
+            # Create full output filepath
+            outputFileLocation = formatOutputFilepath(outputLocation, outputFormat, filename) 
+            print("Location: "+str(outputFileLocation))
+            #print("Rendering file to ", outputFileLocation)
+            renderCommand = 'Export2: Mode=Selection Filename="' + outputFileLocation + '" NumChannels=2 '
+            cmdResult = do_command(renderCommand)
+            time.sleep(5) # Delay for 5 seconds.
+            print("Finished exporting track\n")
 
-    response = requests.get('https://api.discogs.com/releases/'+discogsReleaseID)
-    print("response = ")
-    print(response)
+# Input Full Discogs URL, output Metadata Tags
+def getDiscogsTags(discogsURL):
+    metadataTags = {}
+    discogsURL=discogsURL.strip()
+    #get ID and type from discogsURL
+    discogsSplit = discogsURL.rsplit('/', 2)
+    
+    discogsType = discogsSplit[-2]
 
-    print("discogs api response code = ", response.status_code)
-    #print("response.text = ", response.text)
+    discogsID = discogsSplit[2]
+    if "-" in discogsID:
+        discogsIDSplit = discogsID.split('-')
+        discogsID=discogsIDSplit[0]
+    
 
-    if response.status_code == 200:
-        #get titles from discogs api call
-        print("successful discogs api call") 
+    #make discogs api call
+    requestURL = 'https://api.discogs.com/' + discogsType + 's/' + discogsID
+
+    response = requests.get(requestURL)
+    discogsAPIResponse_status_code = response.status_code
+    if discogsAPIResponse_status_code == 200:
+        print("Discogs API Status Code = 200")
+        #get artist name string
         jsonData = json.loads(response.text)
         #get artist(s) name as string
         artistString = ""
@@ -97,59 +138,110 @@ if '-discogs' in sys.argv:
             if artistNum == 0:
                 artistString = artist['name']
             else:
-                print('else')
                 artistString = artistString + ', ' + artist['name']
-            artistNum = artistNum + 1
-        print("artistString = ", artistString)
-
-        #skip to start of track
-        do_command('Select: Start=0 End=0')
-    
-        #get current working dir
-        os.chdir(os.path.dirname(__file__))
+                artistNum = artistNum + 1
+        #remove any int between parenthesis
+        artistString = re.sub(r'\(([\d)]+)\)', '', artistString)
 
         #get tracklist
+        tracks = []
         tracklist = jsonData['tracklist']
-        print("\n" + str(len(tracklist)) + " songs in tracklist. ")
         trackNum = 1
         for track in tracklist:
-            #go to next clip for selection
-            do_command('SelNextClip')
-            #export each audacity selection
-            outputLocation = sys.argv[len(sys.argv)-1]
-            
-            outputFileLocation = outputLocation + '\\' + str(trackNum) + ". " + track['title'] + ".mp3" 
+            if track['type_'] == 'track':
+                trackTitle = track['title']
+                #sanitize tracktitle
+                trackTitle = slugify(trackTitle)
+                tracks.append(trackTitle)
+                trackNum = trackNum + 1
+        
+        #get album title
+        albumTitle=''
+        albumTitle = jsonData['title']
+        #get releaseDate
+        releaseDate = jsonData['released']
+    else:
+        print("ERROR: Discogs API request did not complete.")
+    metadataTags = {'album':albumTitle, 'artist':artistString, 'year':releaseDate, 'tracks':tracks }   
+    return metadataTags
 
-            print("outputFileLocation = ", outputFileLocation)
-            do_command('Export2: Mode=Selection Filename="' + outputFileLocation + '" NumChannels=2 ')
+def getManualTags():
+    return 'wip'
 
-            #tag output file
-            audio = EasyID3(outputFileLocation) 
-            audio['title'] = track['title'] 
-            audio['artist'] = artistString
-            audio['album'] = jsonData['title']
-            audio['date'] = jsonData['released']
-            audio['tracknumber'] = str(trackNum)
-            audio.save()
-            trackNum = trackNum + 1
+'''
+#############################################
+Start processing command line args 
+#############################################
+'''
+print('~ vinyl2digital ~')
 
-            if '-img' in sys.argv:
-                imgNameIndex = sys.argv.index('-img')
-                imgName = sys.argv[imgNameIndex+1]
-                #set song albumart image
-                audio = ID3(outputFileLocation)
-                imgLocation = outputLocation + '\\' + imgName
-                print('imgLocation = ', imgLocation)
-                with open(imgLocation, 'rb') as albumart:
-                    audio['APIC'] = APIC(
-                        encoding=3,
-                        mime='image/jpeg',
-                        type=3, desc=u'Cover',
-                        data=albumart.read()
-                    )
-                audio.save()
+# -h 
+# Print help information
+if '-h' in sys.argv:
+    print('Welcome to the vinyl2digital pip package: v1.0.1')
+    
+    print('-t')
+    print('Test audacity pipe "Help" commands')
+
+    print('-h')
+    print('View the help page')
+    
+    print('-i discogs https://www.discogs.com/master/14720-Pink-Floyd-Obscured-By-Clouds')
+    print('Take discogs url as input')
+
+    print('-i 12')
+    print('Export x number of audio files with default filenames, in this case 12 audio files would be exported.')
+
+    print('-f flac')
+    print('Set output audio file format (flac, mp3, etc...)')
+
+
+    print('-o "E:\outputFolder"')
+    print('Set output folder location')
+    print('\nEnd of help output\n')
+
+# -t
+# Test audacity connection
+if '-t' in sys.argv:
+    do_command('Help: Command=Help')
+    do_command('Help: Command="GetInfo"')  
+
+# -i
+# Get input and set metadataInput{} object
+metadataInput = {}
+if '-i' in sys.argv:
+    # get string which comes after -i
+    inputIndex = sys.argv.index('-i')
+    inputValueIndex = sys.argv[inputIndex+1]
+
+    if inputValueIndex == 'discogs':
+        discogsCode = inputValueIndex = sys.argv[inputIndex+2]
+        metadataInput = getDiscogsTags(discogsCode)
 
     else:
-        print("unsuccessful discogs api call")
-    
-    
+        numberOfTracks = int(sys.argv[inputIndex+1])
+        tracks=[]
+        for i in range(0, numberOfTracks):
+            tracks.append('filename')
+        metadataInput['tracks']=tracks
+
+# -f
+# Set audio output file format (by default export flac)
+outputFormat = "flac"
+if '-f' in sys.argv:
+    outputFormatIndex = sys.argv.index('-f')
+    outputFormat = sys.argv[outputFormatIndex+1]
+
+# -o
+# Set audio output filepath location
+outputFilepath = ""
+if '-o' in sys.argv:
+    outputFilepathIndex = sys.argv.index('-o')
+    outputFilepath = sys.argv[outputFilepathIndex+1]
+
+if outputFilepath != "" and metadataInput != {}:
+    # Begin exporting Audacity tracks
+    renderAudacityTracks(metadataInput, outputFilepath, outputFormat)
+else:
+    print("Please specify an input ( -i ) and output ( -o )")
+
