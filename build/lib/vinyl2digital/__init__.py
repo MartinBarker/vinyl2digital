@@ -178,7 +178,7 @@ print('~ vinyl2digital ~')
 # -h 
 # Print help information
 if '-h' in sys.argv:
-    print('Welcome to the vinyl2digital pip package: v1.0.1')
+    print('Welcome to the vinyl2digital pip package: v1.0.3')
     
     print('-t')
     print('Test audacity pipe "Help" commands')

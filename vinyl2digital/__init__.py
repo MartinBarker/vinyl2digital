@@ -128,18 +128,20 @@ def getDiscogsTags(discogsURL):
     response = requests.get(requestURL)
     discogsAPIResponse_status_code = response.status_code
     if discogsAPIResponse_status_code == 200:
+        print(requestURL)
         print("Discogs API Status Code = 200")
         #get artist name string
         jsonData = json.loads(response.text)
         #get artist(s) name as string
         artistString = ""
         artistNum = 0
-        for artist in jsonData['artists']:
-            if artistNum == 0:
-                artistString = artist['name']
-            else:
-                artistString = artistString + ', ' + artist['name']
-                artistNum = artistNum + 1
+        if 'artists' in jsonData:
+            for artist in jsonData['artists']:
+                if artistNum == 0:
+                    artistString = artist['name']
+                else:
+                    artistString = artistString + ', ' + artist['name']
+                    artistNum = artistNum + 1
         #remove any int between parenthesis
         artistString = re.sub(r'\(([\d)]+)\)', '', artistString)
 
@@ -156,14 +158,21 @@ def getDiscogsTags(discogsURL):
                 trackNum = trackNum + 1
         
         #get album title
-        albumTitle=''
-        albumTitle = jsonData['title']
+        albumTitle = getValueIfExists(jsonData, 'title')
+
         #get releaseDate
-        releaseDate = jsonData['released']
+        releaseDate = getValueIfExists(jsonData, 'released')
+
     else:
         print("ERROR: Discogs API request did not complete.")
     metadataTags = {'album':albumTitle, 'artist':artistString, 'year':releaseDate, 'tracks':tracks }   
     return metadataTags
+
+def getValueIfExists(dataObj, keyStr):
+    defualtVal = ''
+    if keyStr in dataObj:
+        defualtVal = dataObj[keyStr]
+    return defualtVal
 
 def getManualTags():
     return 'wip'
@@ -178,7 +187,7 @@ print('~ vinyl2digital ~')
 # -h 
 # Print help information
 if '-h' in sys.argv:
-    print('Welcome to the vinyl2digital pip package: v1.0.1')
+    print('Welcome to the vinyl2digital pip package: v1.0.3')
     
     print('-t')
     print('Test audacity pipe "Help" commands')

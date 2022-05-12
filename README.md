@@ -85,3 +85,16 @@ python -m vinyl2digital -i 5 -f mp3 -o "E:\martinradio\rips\vinyl\NewEnglandTeen
 
 * Install the necessary packages: `os, sys, requests, json, time, re`
 * Run locally: `python3 "vinyl2digital/vinyl2digital/__init__.py" -h`
+
+## Releasing a new version:
+* Chance package version number (`setup.py`)
+```
+$ python -m pip install --upgrade build
+$ python -m build
+```
+* This will create the dist/ folder with a new packaged tar
+```
+python3 setup.py sdist bdist_wheel
+pip3 install twine
+python3 -m twine upload dist/*
+```
