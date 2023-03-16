@@ -159,7 +159,7 @@ def getDiscogsTags(discogsURL):
         albumTitle=''
         albumTitle = jsonData['title']
         #get releaseDate
-        releaseDate = jsonData['released']
+        releaseDate = jsonData['year']
     else:
         print("ERROR: Discogs API request did not complete.")
     metadataTags = {'album':albumTitle, 'artist':artistString, 'year':releaseDate, 'tracks':tracks }   
