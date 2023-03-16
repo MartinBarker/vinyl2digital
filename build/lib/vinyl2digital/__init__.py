@@ -82,7 +82,7 @@ def formatOutputFilepath(outputLocation, outputFormat, filename):
         if not os.path.exists(outputLocation):
             os.makedirs(outputLocation)
             print('directory created')
-        outputFileLocation = outputLocation + '' + title + "." + outputFormat 
+        outputFileLocation = outputLocation + '' + filename + "." + outputFormat 
     outputFileLocation = os.path.abspath(outputFileLocation)
     return outputFileLocation
 
