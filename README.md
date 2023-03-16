@@ -37,9 +37,11 @@ pip install vinyl2digital
 <img src="readme-img-3.png" alt="Split Audio Track" width="700"/>
 * Move your cursor to be at the start of your recording
 * While Audacity is open, run the vinyl2digital python package with the `-t` flag to test your connection to the Audacity mod-script-pipe.
+
 ```
 python -m vinyl2digital -t
 ```
+
 * You should now be able to use the vinyl2digital package from the command line to connect with Audacity and batch render multiple audio files one after the other.
 # Flags
 

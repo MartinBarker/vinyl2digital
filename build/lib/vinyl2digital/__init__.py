@@ -82,7 +82,7 @@ def formatOutputFilepath(outputLocation, outputFormat, filename):
         if not os.path.exists(outputLocation):
             os.makedirs(outputLocation)
             print('directory created')
-        outputFileLocation = outputLocation + '' + title + "." + outputFormat 
+        outputFileLocation = outputLocation + '' + filename + "." + outputFormat 
     outputFileLocation = os.path.abspath(outputFileLocation)
     return outputFileLocation
 
@@ -159,7 +159,7 @@ def getDiscogsTags(discogsURL):
         albumTitle=''
         albumTitle = jsonData['title']
         #get releaseDate
-        releaseDate = jsonData['released']
+        releaseDate = jsonData['year']
     else:
         print("ERROR: Discogs API request did not complete.")
     metadataTags = {'album':albumTitle, 'artist':artistString, 'year':releaseDate, 'tracks':tracks }   
