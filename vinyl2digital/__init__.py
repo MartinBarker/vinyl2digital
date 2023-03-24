@@ -82,7 +82,7 @@ def formatOutputFilepath(outputLocation, outputFormat, filename):
         if not os.path.exists(outputLocation):
             os.makedirs(outputLocation)
             print('directory created')
-        outputFileLocation = outputLocation + '' + title + "." + outputFormat 
+        outputFileLocation = outputLocation + '' + filename + "." + outputFormat 
     outputFileLocation = os.path.abspath(outputFileLocation)
     return outputFileLocation
 
@@ -161,7 +161,7 @@ def getDiscogsTags(discogsURL):
         albumTitle = getValueIfExists(jsonData, 'title')
 
         #get releaseDate
-        releaseDate = getValueIfExists(jsonData, 'released')
+        releaseDate = getValueIfExists(jsonData, 'year')
 
     else:
         print("ERROR: Discogs API request did not complete.")
@@ -187,7 +187,7 @@ print('~ vinyl2digital ~')
 # -h 
 # Print help information
 if '-h' in sys.argv:
-    print('Welcome to the vinyl2digital pip package: v1.0.3')
+    print('Welcome to the vinyl2digital pip package: v1.0.5')
     
     print('-t')
     print('Test audacity pipe "Help" commands')

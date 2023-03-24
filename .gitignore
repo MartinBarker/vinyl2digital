@@ -1,0 +1,3 @@
+build/*
+dist/*
+vinyl2digital.egg-info/*
