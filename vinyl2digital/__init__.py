@@ -96,7 +96,7 @@ def formatOutputFilepath(outputLocation, outputFormat, filename):
 def renderAudacityTracks(metadataInput, outputLocation, outputFormat):
     # Go to start of timeline
     print(do_command("Select: Start=0"))
-    
+
     # If 'tracks' key exists in metadataInput
     if 'tracks' in metadataInput:
         #render each track in tracks
@@ -196,7 +196,7 @@ print('~ vinyl2digital ~')
 # -h 
 # Print help information
 if '-h' in sys.argv:
-    print('Welcome to the vinyl2digital pip package: v1.0.5')
+    print('Welcome to the vinyl2digital pip package: v1.0.6')
     
     print('-t')
     print('Test audacity pipe "Help" commands')

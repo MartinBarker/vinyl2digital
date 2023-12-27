@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="vinyl2digital",
-    version="1.0.4",
+    version="1.0.6",
     author="Martin Barker",
     author_email="martinbarker99@gmail.com",
     description="Batch render an audacity recording",
