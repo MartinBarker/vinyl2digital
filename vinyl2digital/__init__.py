@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import os
 import sys
 import requests
@@ -8,7 +11,6 @@ import re
 '''
 Audacity mod-script-pipeline setup
 '''
-# Startup audacity pipe commands
 if sys.platform == 'win32':
     print("pipe-test.py, running on windows")
     TONAME = '\\\\.\\pipe\\ToSrvPipe'
@@ -20,14 +22,18 @@ else:
     FROMNAME = '/tmp/audacity_script_pipe.from.' + str(os.getuid())
     EOL = '\n'
 
+print("Write to  \"" + TONAME +"\"")
 if not os.path.exists(TONAME):
     print(" ..does not exist.  Ensure Audacity is running with mod-script-pipe.")
     sys.exit()
 
+print("Read from \"" + FROMNAME +"\"")
 if not os.path.exists(FROMNAME):
     print(" ..does not exist.  Ensure Audacity is running with mod-script-pipe.")
     sys.exit()
+
 print("-- Both pipes exist.  Good.")
+
 TOFILE = open(TONAME, 'w')
 print("-- File to write to has been opened")
 FROMFILE = open(FROMNAME, 'rt')
@@ -88,6 +94,9 @@ def formatOutputFilepath(outputLocation, outputFormat, filename):
 
 # Export tracks from Audacity
 def renderAudacityTracks(metadataInput, outputLocation, outputFormat):
+    # Go to start of timeline
+    print(do_command("Select: Start=0"))
+    
     # If 'tracks' key exists in metadataInput
     if 'tracks' in metadataInput:
         #render each track in tracks
