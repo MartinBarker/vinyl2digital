@@ -193,6 +193,32 @@ Start processing command line args
 '''
 print('~ vinyl2digital ~')
 
+if '-x' in sys.argv:
+    print("Go to first track")
+    do_command('FirstTrack')
+    time.sleep(2)
+    
+    print("Move cursor to start of track")
+    do_command('CursTrackStart')
+    do_command('SkipSelStart')
+    time.sleep(2)
+
+    while(True):
+
+        print("Select next clip")
+        do_command('SelNextClip')
+        time.sleep(2)
+
+        print('if final clip is selected, break')
+        do_command('PlayStop')
+        do_command('PlayStopSelect')
+        time.sleep(2)
+        if(False):
+            break
+
+
+   
+
 # -h 
 # Print help information
 if '-h' in sys.argv:
