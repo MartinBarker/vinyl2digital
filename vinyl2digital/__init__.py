@@ -1,3 +1,4 @@
+# python vin
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
@@ -7,7 +8,7 @@ import requests
 import json
 import time
 import re
-
+import random 
 '''
 Audacity mod-script-pipeline setup
 '''
@@ -186,6 +187,36 @@ def getValueIfExists(dataObj, keyStr):
 def getManualTags():
     return 'wip'
 
+# Determine if we are at end of track
+def areWeAtEndOfProject(currentTrack, totalTracks):
+    if(currentTrack <= int(totalTracks)):
+        return True
+    else:
+        return False
+
+def areWeAtEndOfTrack(clipCount):
+    if(clipCount < 2):
+        return False
+    return True
+
+def getTrackName():   
+    print("getting track name from audacity")
+    name = "temp"
+
+    try:
+        name = do_command('GetInfo: Type="Tracks"')
+        print("name = ")
+    except Exception as e:
+        print('error ')
+
+    try:
+        name = do_command('GetInfo: Type=Tracks')
+        print("name = ")
+    except Exception as e:
+        print('error ')
+
+    return name 
+
 '''
 #############################################
 Start processing command line args 
@@ -193,31 +224,68 @@ Start processing command line args
 '''
 print('~ vinyl2digital ~')
 
-if '-x' in sys.argv:
+# auto -a "number of tracks"
+if '-a' in sys.argv:
+    numberOfTracksIndex = sys.argv.index('-a')
+    numberOfTracks = int(sys.argv[numberOfTracksIndex+1])
+    print(f"Export {numberOfTracks} tracks")
+
+
+    # Unmute all tracks
+
     print("Go to first track")
     do_command('FirstTrack')
-    time.sleep(2)
+    time.sleep(1)
     
-    print("Move cursor to start of track")
-    do_command('CursTrackStart')
-    do_command('SkipSelStart')
-    time.sleep(2)
+    trackCount = 0
+    while(trackCount < numberOfTracks):
+        print("\nMoves the cursor to the start of the selected track.")
+        do_command('CursTrackStart')
+        do_command('CursSelStart')
+        time.sleep(1)
 
-    while(True):
+        print(f"Select track: {trackCount}")
+        do_command(f'SelectTracks: Track={trackCount}')
+        time.sleep(3)
 
-        print("Select next clip")
-        do_command('SelNextClip')
-        time.sleep(2)
+        # Get trackname
+        trackName = getTrackName()
 
-        print('if final clip is selected, break')
+        # Select clips in this track
+        maxClips = 3
+        i = 1
+        while i <= maxClips:
+            print(f"select clip {i}")
+            do_command('SelNextClip')
+            
+            time.sleep(2)
+            print("export audio")
+
+            i += 1
+        
+        trackCount += 1
+
+
+        """
+        
+
+        
+        # While we are not at end of track
+        clipCount = 1
+        while(areWeAtEndOfTrack(clipCount) == False):
+            print(f'    Clip {clipCount} export audio')
+            filepath = formatOutputFilepath(outputLocation, outputFormat="flac", filename="") 
+            renderCommand = 'Export2: Mode=Selection Filename="' + filepath + '" NumChannels=2 '
+            cmdResult = do_command(renderCommand)
+            # Select next clip
+            do_command('SelNextClip')
+            clipCount += 1
+
+        print('Final clip, selected, at end of track')
         do_command('PlayStop')
         do_command('PlayStopSelect')
-        time.sleep(2)
-        if(False):
-            break
+        """
 
-
-   
 
 # -h 
 # Print help information
