@@ -1,5 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+"""
+Vinyl2Digital - A Python package for batch rendering audio files using Audacity mod-script-pipe.
+
+This module provides functionality to export multiple audio tracks from Audacity
+with metadata support from Discogs or manual track counting.
+"""
 
 import os
 import sys
@@ -7,259 +13,490 @@ import requests
 import json
 import time
 import re
+import logging
+from typing import Dict, List, Optional, Union
+from pathlib import Path
 
-'''
-Audacity mod-script-pipeline setup
-'''
-if sys.platform == 'win32':
-    print("pipe-test.py, running on windows")
-    TONAME = '\\\\.\\pipe\\ToSrvPipe'
-    FROMNAME = '\\\\.\\pipe\\FromSrvPipe'
-    EOL = '\r\n\0'
-else:
-    print("pipe-test.py, running on linux or mac")
-    TONAME = '/tmp/audacity_script_pipe.to.' + str(os.getuid())
-    FROMNAME = '/tmp/audacity_script_pipe.from.' + str(os.getuid())
-    EOL = '\n'
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
 
-print("Write to  \"" + TONAME +"\"")
-if not os.path.exists(TONAME):
-    print(" ..does not exist.  Ensure Audacity is running with mod-script-pipe.")
-    sys.exit()
+# Constants
+SUPPORTED_FORMATS = {'flac', 'mp3', 'wav', 'aiff', 'ogg'}
+DEFAULT_FORMAT = 'flac'
+DEFAULT_DELAY = 5  # seconds between exports
 
-print("Read from \"" + FROMNAME +"\"")
-if not os.path.exists(FROMNAME):
-    print(" ..does not exist.  Ensure Audacity is running with mod-script-pipe.")
-    sys.exit()
+class AudacityPipeError(Exception):
+    """Custom exception for Audacity pipe-related errors."""
+    pass
 
-print("-- Both pipes exist.  Good.")
+class DiscogsAPIError(Exception):
+    """Custom exception for Discogs API-related errors."""
+    pass
 
-TOFILE = open(TONAME, 'w')
-print("-- File to write to has been opened")
-FROMFILE = open(FROMNAME, 'rt')
-print("-- File to read from has now been opened too\r\n")
+class Vinyl2DigitalError(Exception):
+    """Base exception for Vinyl2Digital errors."""
+    pass
 
-'''
-Audacity Functions
-'''
-# Send a single command to audacity mod-script-pipeline
-def send_command(command):
-    #print("Send: >>> \n"+command)
-    TOFILE.write(command + EOL)
-    TOFILE.flush()
-
-# Return the command response
-def get_response():
-    result = ''
-    line = ''
-    while line != '\n':
-        result += line
-        line = FROMFILE.readline()
-    return result
-
-# Send one command, and return the response
-def do_command(command):
-    send_command(command)
-    response = get_response()
-    #print("Rcvd: <<< \n" + response)
-    return response
-
-'''
-Utility Functions
-'''
-# Remove any chars from string that are not english characters or numbers
-def slugify(value):
-    valStr = re.sub('[^A-Za-z0-9()]+', ' ', value)
-    return valStr
-
-# Format output filepath
-def formatOutputFilepath(outputLocation, outputFormat, filename):
-    #create final output filepath with filename and extension (audacity needs this)
-    if sys.platform == 'win32':
-        #if outputLocation folder doesn't exist, create it
-        if not os.path.exists(outputLocation):
-            os.makedirs(outputLocation)
-            print('directory created')
-
-        outputFileLocation = outputLocation + '\\' + filename + "." + outputFormat 
-    else:
-        print('mac/linux option outputfile')
-        #if outputLocation folder doesn't exist, create it
-        if not os.path.exists(outputLocation):
-            os.makedirs(outputLocation)
-            print('directory created')
-        outputFileLocation = outputLocation + '' + filename + "." + outputFormat 
-    outputFileLocation = os.path.abspath(outputFileLocation)
-    return outputFileLocation
-
-# Export tracks from Audacity
-def renderAudacityTracks(metadataInput, outputLocation, outputFormat):
-    # Go to start of timeline
-    print(do_command("Select: Start=0"))
-
-    # If 'tracks' key exists in metadataInput
-    if 'tracks' in metadataInput:
-        #render each track in tracks
-        for i in range(0, len(metadataInput["tracks"])):
-            print("Exporting track ", i+1, "out of", len(metadataInput["tracks"]))
-            title = metadataInput["tracks"][i]
-            #go to next clip for selection
-            do_command('SelNextClip')
-            # Set filename
-            filename = str(i+1) + '. ' + title
-            # Create full output filepath
-            outputFileLocation = formatOutputFilepath(outputLocation, outputFormat, filename) 
-            print("Location: "+str(outputFileLocation))
-            #print("Rendering file to ", outputFileLocation)
-            renderCommand = 'Export2: Mode=Selection Filename="' + outputFileLocation + '" NumChannels=2 '
-            cmdResult = do_command(renderCommand)
-            time.sleep(5) # Delay for 5 seconds.
-            print("Finished exporting track\n")
-
-# Input Full Discogs URL, output Metadata Tags
-def getDiscogsTags(discogsURL):
-    metadataTags = {}
-    discogsURL=discogsURL.strip()
-    #get ID and type from discogsURL
-    discogsSplit = discogsURL.rsplit('/', 2)
+class AudacityPipe:
+    """Handles communication with Audacity via mod-script-pipe."""
     
-    discogsType = discogsSplit[-2]
-
-    discogsID = discogsSplit[2]
-    if "-" in discogsID:
-        discogsIDSplit = discogsID.split('-')
-        discogsID=discogsIDSplit[0]
-    
-
-    #make discogs api call
-    requestURL = 'https://api.discogs.com/' + discogsType + 's/' + discogsID
-
-    response = requests.get(requestURL)
-    discogsAPIResponse_status_code = response.status_code
-    if discogsAPIResponse_status_code == 200:
-        print(requestURL)
-        print("Discogs API Status Code = 200")
-        #get artist name string
-        jsonData = json.loads(response.text)
-        #get artist(s) name as string
-        artistString = ""
-        artistNum = 0
-        if 'artists' in jsonData:
-            for artist in jsonData['artists']:
-                if artistNum == 0:
-                    artistString = artist['name']
-                else:
-                    artistString = artistString + ', ' + artist['name']
-                    artistNum = artistNum + 1
-        #remove any int between parenthesis
-        artistString = re.sub(r'\(([\d)]+)\)', '', artistString)
-
-        #get tracklist
-        tracks = []
-        tracklist = jsonData['tracklist']
-        trackNum = 1
-        for track in tracklist:
-            if track['type_'] == 'track':
-                trackTitle = track['title']
-                #sanitize tracktitle
-                trackTitle = slugify(trackTitle)
-                tracks.append(trackTitle)
-                trackNum = trackNum + 1
+    def __init__(self):
+        self.to_file = None
+        self.from_file = None
+        self.eol = self._get_eol()
+        self.to_name, self.from_name = self._get_pipe_names()
         
-        #get album title
-        albumTitle = getValueIfExists(jsonData, 'title')
-
-        #get releaseDate
-        releaseDate = getValueIfExists(jsonData, 'year')
-
-    else:
-        print("ERROR: Discogs API request did not complete.")
-    metadataTags = {'album':albumTitle, 'artist':artistString, 'year':releaseDate, 'tracks':tracks }   
-    return metadataTags
-
-def getValueIfExists(dataObj, keyStr):
-    defualtVal = ''
-    if keyStr in dataObj:
-        defualtVal = dataObj[keyStr]
-    return defualtVal
-
-def getManualTags():
-    return 'wip'
-
-'''
-#############################################
-Start processing command line args 
-#############################################
-'''
-print('~ vinyl2digital ~')
-
-# -h 
-# Print help information
-if '-h' in sys.argv:
-    print('Welcome to the vinyl2digital pip package: v1.0.6')
+    def _get_eol(self) -> str:
+        """Get end-of-line character based on platform."""
+        return '\r\n\0' if sys.platform == 'win32' else '\n'
     
-    print('-t')
-    print('Test audacity pipe "Help" commands')
-
-    print('-h')
-    print('View the help page')
+    def _get_pipe_names(self) -> tuple:
+        """Get pipe names based on platform."""
+        if sys.platform == 'win32':
+            return ('\\\\.\\pipe\\ToSrvPipe', '\\\\.\\pipe\\FromSrvPipe')
+        else:
+            uid = os.getuid()
+            return (f'/tmp/audacity_script_pipe.to.{uid}', f'/tmp/audacity_script_pipe.from.{uid}')
     
-    print('-i discogs https://www.discogs.com/master/14720-Pink-Floyd-Obscured-By-Clouds')
-    print('Take discogs url as input')
+    def connect(self) -> None:
+        """Establish connection to Audacity pipes."""
+        try:
+            # Check if pipes exist
+            if not os.path.exists(self.to_name):
+                raise AudacityPipeError(f"Write pipe '{self.to_name}' does not exist. Ensure Audacity is running with mod-script-pipe enabled.")
+            
+            if not os.path.exists(self.from_name):
+                raise AudacityPipeError(f"Read pipe '{self.from_name}' does not exist. Ensure Audacity is running with mod-script-pipe enabled.")
+            
+            # Open pipes
+            self.to_file = open(self.to_name, 'w')
+            self.from_file = open(self.from_name, 'r')
+            
+            logger.info("Successfully connected to Audacity pipes")
+            logger.info(f"Write pipe: {self.to_name}")
+            logger.info(f"Read pipe: {self.from_name}")
+            
+        except Exception as e:
+            raise AudacityPipeError(f"Failed to connect to Audacity pipes: {e}")
+    
+    def disconnect(self) -> None:
+        """Close pipe connections."""
+        try:
+            if self.to_file:
+                self.to_file.close()
+            if self.from_file:
+                self.from_file.close()
+            logger.info("Disconnected from Audacity pipes")
+        except Exception as e:
+            logger.warning(f"Error during disconnect: {e}")
+    
+    def send_command(self, command: str) -> None:
+        """Send a command to Audacity."""
+        if not self.to_file:
+            raise AudacityPipeError("Not connected to Audacity")
+        
+        try:
+            self.to_file.write(command + self.eol)
+            self.to_file.flush()
+            logger.debug(f"Sent command: {command}")
+        except Exception as e:
+            raise AudacityPipeError(f"Failed to send command '{command}': {e}")
+    
+    def get_response(self) -> str:
+        """Get response from Audacity."""
+        if not self.from_file:
+            raise AudacityPipeError("Not connected to Audacity")
+        
+        try:
+            result = ''
+            line = ''
+            while line != '\n':
+                result += line
+                line = self.from_file.readline()
+            logger.debug(f"Received response: {result.strip()}")
+            return result
+        except Exception as e:
+            raise AudacityPipeError(f"Failed to get response: {e}")
+    
+    def do_command(self, command: str) -> str:
+        """Send a command and return the response."""
+        self.send_command(command)
+        return self.get_response()
+    
+    def test_connection(self) -> bool:
+        """Test the connection by sending help commands."""
+        try:
+            logger.info("Testing Audacity connection...")
+            self.do_command('Help: Command=Help')
+            self.do_command('Help: Command="GetInfo"')
+            logger.info("✓ Audacity connection test successful")
+            return True
+        except Exception as e:
+            logger.error(f"✗ Audacity connection test failed: {e}")
+            return False
 
-    print('-i 12')
-    print('Export x number of audio files with default filenames, in this case 12 audio files would be exported.')
+class FileExporter:
+    """Handles file export operations."""
+    
+    @staticmethod
+    def slugify(value: str) -> str:
+        """Remove non-alphanumeric characters from string."""
+        return re.sub(r'[^A-Za-z0-9()]+', ' ', value)
+    
+    @staticmethod
+    def format_output_filepath(output_location: str, output_format: str, filename: str) -> Path:
+        """Format and validate output filepath."""
+        try:
+            output_path = Path(output_location)
+            
+            # Create directory if it doesn't exist
+            output_path.mkdir(parents=True, exist_ok=True)
+            
+            # Create full filepath
+            output_file = output_path / f"{filename}.{output_format}"
+            
+            # Convert to absolute path and normalize
+            output_file = output_file.resolve()
+            
+            logger.info(f"Output file: {output_file}")
+            logger.debug(f"Directory exists: {output_file.parent.exists()}")
+            
+            return output_file
+            
+        except Exception as e:
+            raise Vinyl2DigitalError(f"Failed to format output filepath: {e}")
+    
+    @staticmethod
+    def verify_file_creation(file_path: Path) -> bool:
+        """Verify that a file was created successfully."""
+        if file_path.exists():
+            file_size = file_path.stat().st_size
+            logger.info(f"✓ File created successfully: {file_path}")
+            logger.info(f"  Size: {file_size} bytes")
+            return True
+        else:
+            logger.error(f"✗ File was not created: {file_path}")
+            return False
 
-    print('-f flac')
-    print('Set output audio file format (flac, mp3, etc...)')
+class DiscogsAPI:
+    """Handles Discogs API interactions."""
+    
+    BASE_URL = "https://api.discogs.com"
+    
+    @staticmethod
+    def get_metadata(discogs_url: str) -> Dict[str, Union[str, List[str]]]:
+        """Fetch metadata from Discogs API."""
+        try:
+            # Parse URL to extract type and ID
+            url_parts = discogs_url.strip().rsplit('/', 2)
+            if len(url_parts) < 3:
+                raise DiscogsAPIError("Invalid Discogs URL format")
+            
+            discogs_type = url_parts[-2]
+            discogs_id = url_parts[2].split('-')[0]  # Remove any suffix after ID
+            
+            # Construct API URL
+            api_url = f"{DiscogsAPI.BASE_URL}/{discogs_type}s/{discogs_id}"
+            logger.info(f"Fetching metadata from: {api_url}")
+            
+            # Make API request
+            response = requests.get(api_url, timeout=30)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            # Extract metadata
+            metadata = {
+                'album': DiscogsAPI._get_value(data, 'title'),
+                'artist': DiscogsAPI._extract_artists(data),
+                'year': DiscogsAPI._get_value(data, 'year'),
+                'tracks': DiscogsAPI._extract_tracks(data)
+            }
+            
+            logger.info(f"Successfully fetched metadata for: {metadata['album']}")
+            return metadata
+            
+        except requests.RequestException as e:
+            raise DiscogsAPIError(f"Discogs API request failed: {e}")
+        except json.JSONDecodeError as e:
+            raise DiscogsAPIError(f"Invalid JSON response from Discogs: {e}")
+        except Exception as e:
+            raise DiscogsAPIError(f"Unexpected error fetching Discogs metadata: {e}")
+    
+    @staticmethod
+    def _get_value(data: Dict, key: str, default: str = '') -> str:
+        """Safely get value from dictionary."""
+        return str(data.get(key, default))
+    
+    @staticmethod
+    def _extract_artists(data: Dict) -> str:
+        """Extract artist names from Discogs data."""
+        artists = []
+        if 'artists' in data:
+            for artist in data['artists']:
+                name = artist.get('name', '')
+                # Remove year in parentheses
+                name = re.sub(r'\(\d+\)', '', name).strip()
+                if name:
+                    artists.append(name)
+        
+        return ', '.join(artists) if artists else 'Unknown Artist'
+    
+    @staticmethod
+    def _extract_tracks(data: Dict) -> List[str]:
+        """Extract track list from Discogs data."""
+        tracks = []
+        tracklist = data.get('tracklist', [])
+        
+        for track in tracklist:
+            if track.get('type_') == 'track':
+                title = track.get('title', '')
+                if title:
+                    # Sanitize track title
+                    sanitized_title = FileExporter.slugify(title).strip()
+                    if sanitized_title:
+                        tracks.append(sanitized_title)
+        
+        return tracks
 
+class TrackRenderer:
+    """Handles rendering of audio tracks."""
+    
+    def __init__(self, pipe: AudacityPipe):
+        self.pipe = pipe
+    
+    def render_tracks(self, metadata: Dict, output_location: str, output_format: str) -> None:
+        """Render all tracks from metadata."""
+        try:
+            tracks = metadata.get('tracks', [])
+            if not tracks:
+                raise Vinyl2DigitalError("No tracks found in metadata")
+            
+            logger.info(f"Starting export of {len(tracks)} tracks")
+            
+            # Go to start of timeline
+            self.pipe.do_command("Select: Start=0")
+            
+            for i, title in enumerate(tracks, 1):
+                logger.info(f"Exporting track {i}/{len(tracks)}: {title}")
+                
+                try:
+                    # Select next clip
+                    self.pipe.do_command('SelNextClip')
+                    
+                    # Format filename
+                    filename = f"{i:02d}. {title}"
+                    
+                    # Create output filepath
+                    output_file = FileExporter.format_output_filepath(
+                        output_location, output_format, filename
+                    )
+                    
+                    # Render track
+                    render_cmd = f'Export2: Mode=Selection Filename="{output_file}" NumChannels=2'
+                    self.pipe.do_command(render_cmd)
+                    
+                    # Wait for export to complete
+                    time.sleep(DEFAULT_DELAY)
+                    
+                    # Verify file creation
+                    if not FileExporter.verify_file_creation(output_file):
+                        logger.warning(f"Track {i} may not have exported correctly")
+                    
+                    logger.info(f"Completed track {i}/{len(tracks)}")
+                    
+                except Exception as e:
+                    logger.error(f"Failed to export track {i}: {e}")
+                    continue
+            
+            logger.info("Track export completed")
+            
+        except Exception as e:
+            raise Vinyl2DigitalError(f"Failed to render tracks: {e}")
 
-    print('-o "E:\outputFolder"')
-    print('Set output folder location')
-    print('\nEnd of help output\n')
+class Vinyl2Digital:
+    """Main class for Vinyl2Digital operations."""
+    
+    def __init__(self):
+        self.pipe = AudacityPipe()
+        self.renderer = None
+    
+    def __enter__(self):
+        """Context manager entry."""
+        self.pipe.connect()
+        self.renderer = TrackRenderer(self.pipe)
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit."""
+        self.pipe.disconnect()
+    
+    def test_connection(self) -> bool:
+        """Test Audacity connection."""
+        try:
+            with self:
+                return self.pipe.test_connection()
+        except Exception as e:
+            logger.error(f"Connection test failed: {e}")
+            return False
+    
+    def export_tracks(self, input_source: Union[str, int], output_location: str, 
+                     output_format: str = DEFAULT_FORMAT) -> None:
+        """Export tracks based on input source."""
+        try:
+            # Validate output format
+            if output_format not in SUPPORTED_FORMATS:
+                raise Vinyl2DigitalError(f"Unsupported format: {output_format}. Supported: {', '.join(SUPPORTED_FORMATS)}")
+            
+            # Get metadata
+            if isinstance(input_source, str) and input_source.startswith('http'):
+                metadata = DiscogsAPI.get_metadata(input_source)
+            elif isinstance(input_source, int):
+                metadata = {'tracks': [f'Track {i+1:02d}' for i in range(input_source)]}
+            else:
+                raise Vinyl2DigitalError(f"Invalid input source: {input_source}")
+            
+            # Validate output location
+            output_path = Path(output_location)
+            if not output_path.parent.exists():
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Export tracks
+            with self:
+                self.renderer.render_tracks(metadata, output_location, output_format)
+                
+        except Exception as e:
+            logger.error(f"Export failed: {e}")
+            raise
 
-# -t
-# Test audacity connection
-if '-t' in sys.argv:
-    do_command('Help: Command=Help')
-    do_command('Help: Command="GetInfo"')  
+def print_help():
+    """Print help information."""
+    help_text = """
+Vinyl2Digital v1.0.6 - Batch audio export from Audacity
 
-# -i
-# Get input and set metadataInput{} object
-metadataInput = {}
-if '-i' in sys.argv:
-    # get string which comes after -i
-    inputIndex = sys.argv.index('-i')
-    inputValueIndex = sys.argv[inputIndex+1]
+USAGE:
+    python -m vinyl2digital [OPTIONS]
 
-    if inputValueIndex == 'discogs':
-        discogsCode = inputValueIndex = sys.argv[inputIndex+2]
-        metadataInput = getDiscogsTags(discogsCode)
+OPTIONS:
+    -h, --help              Show this help message
+    -t, --test             Test Audacity connection
+    -i, --input SOURCE     Input source (Discogs URL or track count)
+    -f, --format FORMAT    Output format (flac, mp3, wav, aiff, ogg)
+    -o, --output PATH      Output directory path
 
-    else:
-        numberOfTracks = int(sys.argv[inputIndex+1])
-        tracks=[]
-        for i in range(0, numberOfTracks):
-            tracks.append('filename')
-        metadataInput['tracks']=tracks
+EXAMPLES:
+    # Test connection
+    python -m vinyl2digital -t
+    
+    # Export with Discogs metadata
+    python -m vinyl2digital -i "https://www.discogs.com/release/12345" -f flac -o "/path/to/output"
+    
+    # Export 12 tracks with default names
+    python -m vinyl2digital -i 12 -f mp3 -o "/path/to/output"
+    
+    # Get help
+    python -m vinyl2digital -h
 
-# -f
-# Set audio output file format (by default export flac)
-outputFormat = "flac"
-if '-f' in sys.argv:
-    outputFormatIndex = sys.argv.index('-f')
-    outputFormat = sys.argv[outputFormatIndex+1]
+SUPPORTED FORMATS:
+    flac, mp3, wav, aiff, ogg
 
-# -o
-# Set audio output filepath location
-outputFilepath = ""
-if '-o' in sys.argv:
-    outputFilepathIndex = sys.argv.index('-o')
-    outputFilepath = sys.argv[outputFilepathIndex+1]
+REQUIREMENTS:
+    - Audacity running with mod-script-pipe enabled
+    - Active audio project with track selections
+"""
+    print(help_text)
 
-if outputFilepath != "" and metadataInput != {}:
-    # Begin exporting Audacity tracks
-    renderAudacityTracks(metadataInput, outputFilepath, outputFormat)
-else:
-    print("Please specify an input ( -i ) and output ( -o )")
+def main():
+    """Main CLI entry point."""
+    try:
+        logger.info("~ vinyl2digital ~")
+        
+        # Parse command line arguments
+        args = sys.argv[1:]
+        
+        # Handle help
+        if not args or '-h' in args or '--help' in args:
+            print_help()
+            return
+        
+        # Handle test
+        if '-t' in args or '--test' in args:
+            vinyl = Vinyl2Digital()
+            success = vinyl.test_connection()
+            sys.exit(0 if success else 1)
+        
+        # Parse required arguments
+        input_source = None
+        output_location = None
+        output_format = DEFAULT_FORMAT
+        
+        # Parse input
+        if '-i' in args:
+            input_index = args.index('-i')
+            if input_index + 1 >= len(args):
+                raise Vinyl2DigitalError("Missing input value after -i")
+            
+            input_value = args[input_index + 1]
+            
+            # Check if it's a Discogs URL
+            if input_value == 'discogs':
+                if input_index + 2 >= len(args):
+                    raise Vinyl2DigitalError("Missing Discogs URL after 'discogs'")
+                input_source = args[input_index + 2]
+            else:
+                # Try to parse as track count
+                try:
+                    input_source = int(input_value)
+                    if input_source <= 0:
+                        raise Vinyl2DigitalError("Track count must be positive")
+                except ValueError:
+                    raise Vinyl2DigitalError(f"Invalid track count: {input_value}")
+        
+        # Parse format
+        if '-f' in args:
+            format_index = args.index('-f')
+            if format_index + 1 >= len(args):
+                raise Vinyl2DigitalError("Missing format value after -f")
+            output_format = args[format_index + 1]
+        
+        # Parse output
+        if '-o' in args:
+            output_index = args.index('-o')
+            if output_index + 1 >= len(args):
+                raise Vinyl2DigitalError("Missing output path after -o")
+            output_location = args[output_index + 1].strip('"\'')
+        
+        # Validate required arguments
+        if input_source is None:
+            raise Vinyl2DigitalError("Input source (-i) is required")
+        if output_location is None:
+            raise Vinyl2DigitalError("Output location (-o) is required")
+        
+        # Export tracks
+        vinyl = Vinyl2Digital()
+        vinyl.export_tracks(input_source, output_location, output_format)
+        
+        logger.info("Export completed successfully!")
+        
+    except Vinyl2DigitalError as e:
+        logger.error(f"Error: {e}")
+        print(f"\nError: {e}")
+        print("Use -h for help")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        logger.info("Operation cancelled by user")
+        print("\nOperation cancelled")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        print(f"\nUnexpected error: {e}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
 

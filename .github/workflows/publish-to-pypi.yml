@@ -1,0 +1,104 @@
+# GitHub Actions workflow for publishing vinyl2digital to PyPI and TestPyPI
+# 
+# REQUIRED GITHUB SECRETS (set these in your repo's Settings > Secrets and variables > Actions):
+# 
+# NO API TOKENS NEEDED - This workflow uses PyPI's Trusted Publishing feature
+# 
+# REQUIRED SETUP (do this before running the workflow):
+# 1. Go to https://pypi.org/manage/account/publishing/
+#    - Project name: vinyl2digital
+#    - GitHub repository owner: [your-github-username]
+#    - Repository name: vinyl2digital
+#    - Workflow name: publish-to-pypi
+#    - Environment name: pypi
+# 
+# 2. Go to https://test.pypi.org/manage/account/publishing/
+#    - Project name: vinyl2digital
+#    - GitHub repository owner: [your-github-username]
+#    - Repository name: vinyl2digital
+#    - Workflow name: publish-to-pypi
+#    - Environment name: testpypi
+# 
+# 3. In your GitHub repo, go to Settings > Environments and create:
+#    - Environment name: "pypi" (require manual approval for security)
+#    - Environment name: "testpypi" (optional manual approval)
+#
+# 4. Make sure your setup.py or pyproject.toml has the correct package name "vinyl2digital"
+
+name: Publish Python 🐍 distribution 📦 to PyPI and TestPyPI
+
+on: push
+
+jobs:
+  build:
+    name: Build distribution 📦
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.x"
+    - name: Install pypa/build
+      run: >-
+        python3 -m
+        pip install
+        build
+        --user
+    - name: Build a binary wheel and a source tarball
+      run: python3 -m build
+    - name: Store the distribution packages
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+
+  publish-to-pypi:
+    name: >-
+      Publish Python 🐍 distribution 📦 to PyPI
+    if: startsWith(github.ref, 'refs/tags/')  # only publish to PyPI on tag pushes
+    needs:
+    - build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/vinyl2digital
+    permissions:
+      id-token: write  # IMPORTANT: mandatory for trusted publishing
+
+    steps:
+    - name: Download all the dists
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+    - name: Publish distribution 📦 to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+
+  publish-to-testpypi:
+    name: Publish Python 🐍 distribution 📦 to TestPyPI
+    needs:
+    - build
+    runs-on: ubuntu-latest
+
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/vinyl2digital
+
+    permissions:
+      id-token: write  # IMPORTANT: mandatory for trusted publishing
+
+    steps:
+    - name: Download all the dists
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+    - name: Publish distribution 📦 to TestPyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        repository-url: https://test.pypi.org/legacy/
+
