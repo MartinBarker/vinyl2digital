@@ -385,6 +385,7 @@ USAGE:
 OPTIONS:
     -h, --help              Show this help message
     -t, --test             Test Audacity connection
+    -l, --launch           Launch Audacity (auto-detects OS)
     -i, --input SOURCE     Input source (Discogs URL or track count)
     -f, --format FORMAT    Output format (flac, mp3, wav, aiff, ogg)
     -o, --output PATH      Output directory path
@@ -392,6 +393,9 @@ OPTIONS:
 EXAMPLES:
     # Test connection
     python -m vinyl2digital -t
+    
+    # Launch Audacity
+    python -m vinyl2digital -l
     
     # Export with Discogs metadata
     python -m vinyl2digital -i "https://www.discogs.com/release/12345" -f flac -o "/path/to/output"
@@ -411,6 +415,55 @@ REQUIREMENTS:
 """
     print(help_text)
 
+def launch_audacity():
+    """Launch Audacity based on the current operating system."""
+    import subprocess
+    import platform
+    
+    system = platform.system().lower()
+    
+    try:
+        if system == "windows":
+            # Windows - try common installation paths
+            audacity_paths = [
+                r"C:\Program Files\Audacity\audacity.exe",
+                r"C:\Program Files (x86)\Audacity\audacity.exe",
+                r"C:\Users\{}\AppData\Local\Programs\Audacity\audacity.exe".format(os.getenv('USERNAME', '')),
+                r"C:\Users\{}\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Audacity\Audacity.lnk".format(os.getenv('USERNAME', ''))
+            ]
+            
+            for path in audacity_paths:
+                if os.path.exists(path):
+                    logger.info(f"Launching Audacity from: {path}")
+                    subprocess.Popen([path], shell=True)
+                    return True
+            
+            # If not found in common paths, try to launch from PATH
+            logger.info("Audacity not found in common paths, trying to launch from PATH...")
+            subprocess.Popen(["audacity"], shell=True)
+            return True
+            
+        elif system == "darwin":  # macOS
+            logger.info("Launching Audacity on macOS...")
+            subprocess.run(["open", "-a", "Audacity"], check=True)
+            return True
+            
+        elif system == "linux":
+            logger.info("Launching Audacity on Linux...")
+            subprocess.run(["audacity"], check=True)
+            return True
+            
+        else:
+            logger.error(f"Unsupported operating system: {system}")
+            return False
+            
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Failed to launch Audacity: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"Unexpected error launching Audacity: {e}")
+        return False
+
 def main():
     """Main CLI entry point."""
     try:
@@ -428,6 +481,11 @@ def main():
         if '-t' in args or '--test' in args:
             vinyl = Vinyl2Digital()
             success = vinyl.test_connection()
+            sys.exit(0 if success else 1)
+        
+        # Handle launch
+        if '-l' in args or '--launch' in args:
+            success = launch_audacity()
             sys.exit(0 if success else 1)
         
         # Parse required arguments
