@@ -23,4 +23,8 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.6',
+    project_urls={
+        "Bug Reports": "https://github.com/MartinBarker/vinyl2digital/issues",
+        "Source": "https://github.com/MartinBarker/vinyl2digital",
+    },
 )

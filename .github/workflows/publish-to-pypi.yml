@@ -27,7 +27,10 @@
 
 name: Publish Python 🐍 distribution 📦 to PyPI and TestPyPI
 
-on: push
+on:
+  push:
+    tags:
+      - 'v*'  # Only trigger on version tags like v1.0.7
 
 jobs:
   build:
