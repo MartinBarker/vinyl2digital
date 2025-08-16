@@ -1,11 +1,11 @@
 import setuptools
 
-with open("README.md", "r") as fh:
+with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name="vinyl2digital",
-    version="1.0.6",
+    version="1.0.7",
     author="Martin Barker",
     author_email="martinbarker99@gmail.com",
     description="Batch render an audacity recording",
